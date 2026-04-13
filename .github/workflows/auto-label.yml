@@ -17,7 +17,7 @@ jobs:
           script: |
             const title = context.payload.pull_request.title;
             const labels = [];
-            
+
             if (title.startsWith('feat:') || title.startsWith('feat(')) {
               labels.push('feat');
             } else if (title.startsWith('fix:') || title.startsWith('fix(')) {
@@ -35,7 +35,7 @@ jobs:
             } else if (title.startsWith('deps:') || title.startsWith('deps(') || title.startsWith('build(deps')) {
               labels.push('deps');
             }
-            
+
             if (labels.length > 0) {
               await github.rest.issues.setLabels({
                 owner: context.repo.owner,
