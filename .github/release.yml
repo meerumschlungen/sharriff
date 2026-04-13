@@ -31,6 +31,10 @@ changelog:
       labels:
         - perf
         - performance
+    - title: 📦 Dependencies
+      labels:
+        - deps
+        - dependencies
     - title: Other Changes
       labels:
         - '*'
