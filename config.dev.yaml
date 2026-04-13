@@ -1,0 +1,19 @@
+global:
+  dry_run: true
+  missing_batch_size: 9
+  upgrade_batch_size: 0
+  stagger_interval_seconds: 2
+
+instances:
+  lidarr:
+    type: lidarr
+    host: ${LIDARR_HOST}
+    api_key: ${LIDARR_API_KEY}
+  sonarr:
+    type: sonarr
+    host: ${SONARR_HOST}
+    api_key: ${SONARR_API_KEY}
+  radarr:
+    type: radarr
+    host: ${RADARR_HOST}
+    api_key: ${RADARR_API_KEY}
