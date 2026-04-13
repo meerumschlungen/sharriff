@@ -57,7 +57,8 @@ export class HttpClient {
             error.response.status !== 429
           ) {
             throw new Error(
-              `HTTP ${error.response.status}: ${error.response.statusText} - ${config.method} ${config.url}`
+              `HTTP ${error.response.status}: ${error.response.statusText} - ${config.method} ${config.url}`,
+              { cause: error }
             );
           }
 

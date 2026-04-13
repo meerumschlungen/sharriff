@@ -3,7 +3,7 @@
 # ===================================
 # Builder Stage
 # ===================================
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /build
 
@@ -23,7 +23,7 @@ RUN npm run build
 # ===================================
 # Production Stage
 # ===================================
-FROM node:20-alpine AS production
+FROM node:24-alpine AS production
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
