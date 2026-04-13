@@ -7,7 +7,7 @@ import type { GlobalSettings } from '../types.js';
 import { logger } from '../logger.js';
 import { interruptibleSleep } from '../utils/shutdown.js';
 import { EventEmitter } from 'events';
-import { Mutex } from 'async-mutex';
+import { Mutex } from '../utils/mutex.js';
 
 export interface OrchestratorOptions {
   oneShot?: boolean; // If true, run once and exit. If false, run continuously

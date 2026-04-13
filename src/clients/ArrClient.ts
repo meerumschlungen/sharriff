@@ -9,7 +9,7 @@ import { createLogger } from '../logger.js';
 import type { Logger } from 'pino';
 import { interruptibleSleep } from '../utils/shutdown.js';
 import type { EventEmitter } from 'events';
-import type { Mutex } from 'async-mutex';
+import type { Mutex } from '../utils/mutex.js';
 
 interface SystemStatus {
   version: string;

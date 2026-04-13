@@ -666,7 +666,7 @@ describe('ArrClient integration methods', () => {
   });
 
   describe('shutdown resources', () => {
-    it('should set shutdown resources (mutex and emitter)', () => {
+    it('should set shutdown resources (mutex and emitter)', async () => {
       const settings = createSettings('last_searched_ascending');
       const client = new ArrClient(
         'radarr',
@@ -678,8 +678,8 @@ describe('ArrClient integration methods', () => {
       );
 
       // Import dependencies for shutdown
-      const { Mutex } = require('async-mutex');
-      const { EventEmitter } = require('events');
+      const { Mutex } = await import('../../src/utils/mutex.js');
+      const { EventEmitter } = await import('events');
 
       const mockMutex = new Mutex();
       const mockEmitter = new EventEmitter();

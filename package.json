@@ -38,7 +38,6 @@
   },
   "homepage": "https://github.com/meerumschlungen/sharriff#readme",
   "dependencies": {
-    "async-mutex": "^0.5.0",
     "axios": "^1.15.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
