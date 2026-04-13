@@ -1,9 +1,9 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:2780b5c3bab67f1f76c781860de469442999ed1a0d7992a5efdf2cffc0e3d769
 
 # ===================================
 # Builder Stage
 # ===================================
-FROM node:24-alpine AS builder
+FROM node:24-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b AS builder
 
 WORKDIR /build
 
@@ -23,7 +23,7 @@ RUN npm run build
 # ===================================
 # Production Stage
 # ===================================
-FROM node:24-alpine AS production
+FROM node:24-alpine@sha256:01743339035a5c3c11a373cd7c83aeab6ed1457b55da6a69e014a95ac4e4700b AS production
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
