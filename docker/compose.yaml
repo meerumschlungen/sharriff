@@ -1,0 +1,29 @@
+services:
+  sharriff:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sharriff:latest
+    # environment:
+    # Logging configuration
+    # - LOG_LEVEL=info
+    # - LOG_FORMAT=json
+    # - TZ=UTC
+
+    # Config file location (default: /config/sharriff.yaml)
+    # - SHARRIFF_CONFIG_FILE=/config/sharriff.yaml
+    env_file: .env
+
+    # Mount configuration file
+    volumes:
+      - ./config.yaml:/config/sharriff.yaml:ro
+
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M

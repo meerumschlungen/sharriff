@@ -1,0 +1,52 @@
+# Sharriff Configuration
+#
+# Environment Variable Interpolation:
+# Use ${VAR_NAME} syntax to reference environment variables in any field.
+# Example: api_key: ${RADARR_API_KEY}
+# This keeps sensitive credentials out of version control.
+# Create a .env file with your actual values (see .env.example)
+
+global:
+  # Run interval in seconds
+  interval: 3600
+
+  # Batch sizes: 0 = disabled, -1 = unlimited, N > 0 = limit to N items per cycle
+  missing_batch_size: 20
+  upgrade_batch_size: 10
+
+  # Delay between individual search requests (seconds)
+  stagger_interval_seconds: 30
+
+  # Search ordering strategy
+  # Options: alphabetical_ascending, alphabetical_descending, last_added_ascending,
+  #          last_added_descending, last_searched_ascending, last_searched_descending,
+  #          release_date_ascending, release_date_descending
+  search_order: last_searched_ascending
+
+  # Days before retrying a previously searched item
+  retry_interval_days: 30
+
+  # Dry run mode (no actual searches triggered)
+  dry_run: false
+
+instances:
+  radarr:
+    type: radarr
+    host: 'http://radarr:7878'
+    api_key: 'YOUR_RADARR_API_KEY' # or use: ${RADARR_API_KEY}
+    enabled: true
+    weight: 1.0
+
+  sonarr:
+    type: sonarr
+    host: 'http://sonarr:8989'
+    api_key: 'YOUR_SONARR_API_KEY' # or use: ${SONARR_API_KEY}
+    enabled: false
+    weight: 1.0
+
+  lidarr:
+    type: lidarr
+    host: 'http://lidarr:8686'
+    api_key: 'YOUR_LIDARR_API_KEY' # or use: ${LIDARR_API_KEY}
+    enabled: false
+    weight: 1.0
