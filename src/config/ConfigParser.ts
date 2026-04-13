@@ -66,7 +66,8 @@ export function loadConfig(): Config {
     throw new Error(
       `Failed to read configuration file '${filePath}': ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
+      { cause: error }
     );
   }
 
@@ -102,7 +103,8 @@ export function parseConfig(yamlContent: string): Config {
     rawConfig = parse(interpolated);
   } catch (error) {
     throw new Error(
-      `Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
     );
   }
 
@@ -111,7 +113,9 @@ export function parseConfig(yamlContent: string): Config {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const issues = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
-      throw new Error(`Configuration validation failed:\n  - ${issues.join('\n  - ')}`);
+      throw new Error(`Configuration validation failed:\n  - ${issues.join('\n  - ')}`, {
+        cause: error,
+      });
     }
     throw error;
   }
