@@ -58,11 +58,11 @@ jobs:
       - name: Generate coverage
         run: npm run test:coverage
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
+      - name: Coverage comment
+        uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          files: ./coverage/coverage-final.json
-          fail_ci_if_error: false
+          lcov-file: ./coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
     runs-on: ubuntu-latest
