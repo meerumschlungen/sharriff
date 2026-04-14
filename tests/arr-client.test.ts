@@ -678,7 +678,7 @@ describe('ArrClient integration methods', () => {
       );
 
       // Import dependencies for shutdown
-      const { Mutex } = await import('../../src/utils/mutex.js');
+      const { Mutex } = await import('../src/utils/mutex.js');
       const { EventEmitter } = await import('events');
 
       const mockMutex = new Mutex();
