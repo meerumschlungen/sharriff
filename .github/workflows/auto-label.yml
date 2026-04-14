@@ -16,31 +16,36 @@ jobs:
         with:
           script: |
             const title = context.payload.pull_request.title;
-            const labels = [];
 
-            if (title.startsWith('feat:') || title.startsWith('feat(')) {
-              labels.push('feat');
-            } else if (title.startsWith('fix:') || title.startsWith('fix(')) {
-              labels.push('fix');
-            } else if (title.startsWith('docs:') || title.startsWith('docs(')) {
-              labels.push('docs');
-            } else if (title.startsWith('chore:') || title.startsWith('chore(')) {
-              labels.push('chore');
-            } else if (title.startsWith('test:') || title.startsWith('test(')) {
-              labels.push('test');
-            } else if (title.startsWith('refactor:') || title.startsWith('refactor(')) {
-              labels.push('refactor');
-            } else if (title.startsWith('perf:') || title.startsWith('perf(')) {
-              labels.push('perf');
-            } else if (title.startsWith('deps:') || title.startsWith('deps(') || title.startsWith('build(deps')) {
-              labels.push('deps');
+            // Conventional commit regex: type(optional-scope): description
+            const conventionalCommitRegex = /^(feat|fix|docs|chore|test|refactor|perf|deps)(\(.+?\))?:\s*.+/;
+
+            // Check if title matches conventional commits format
+            const match = title.match(conventionalCommitRegex);
+
+            if (!match) {
+              core.setFailed(
+                `❌ PR title does not follow Conventional Commits format!\n\n` +
+                `Current title: "${title}"\n\n` +
+                `Expected format: type(optional-scope): description\n\n` +
+                `Valid types: feat, fix, docs, chore, test, refactor, perf, deps\n\n` +
+                `Examples:\n` +
+                `  - feat: add new feature\n` +
+                `  - fix(api): resolve endpoint error\n` +
+                `  - docs: update README\n` +
+                `  - chore(deps): update dependencies`
+              );
+              return;
             }
 
-            if (labels.length > 0) {
-              await github.rest.issues.setLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                labels: labels
-              });
-            }
+            // Extract the type and use it directly as the label
+            const label = match[1];
+
+            await github.rest.issues.setLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: [label]
+            });
+
+            core.info(`✅ Applied label: ${label}`);

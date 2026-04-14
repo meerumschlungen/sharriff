@@ -2,21 +2,40 @@
 
 <!-- Brief description of what this PR does -->
 
-## Type of Change
-
-<!-- Delete options that are not relevant -->
-
-- [ ] `feat`: New feature
-- [ ] `fix`: Bug fix
-- [ ] `docs`: Documentation changes
-- [ ] `chore`: Maintenance tasks
-- [ ] `refactor`: Code refactoring
-- [ ] `test`: Test improvements
-- [ ] `perf`: Performance improvements
-
 ## Checklist
 
-- [ ] Tests pass (`npm test`)
-- [ ] Code follows the project style (`npm run check`)
-- [ ] PR title follows [Conventional Commits](https://www.conventionalcommits.org/) format
-- [ ] Documentation updated (if needed)
+- [ ] Tests pass and code follows the project style (`npm run check`), enforced by CI
+- [ ] ✅ **PR title follows Conventional Commits format** (enforced by CI)
+
+<!--
+## PR Title Format ⚠️
+
+**Your PR title MUST follow this format or CI will fail:**
+
+```
+type(optional-scope): description
+```
+
+**Valid types:**
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `chore`: Maintenance tasks (configs, CI, etc.)
+- `test`: Test improvements
+- `refactor`: Code refactoring (no behavior change)
+- `perf`: Performance improvements
+- `deps`: Dependency updates
+
+**Examples:**
+
+```
+feat: add retry logic for failed searches
+fix(http): handle timeout errors properly
+docs: update installation guide
+chore(deps): update vitest to v5
+test: add coverage for mutex edge cases
+```
+
+**Note:** The auto-label workflow will automatically tag your PR based on the type.
+-->
