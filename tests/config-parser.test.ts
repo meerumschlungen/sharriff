@@ -308,6 +308,53 @@ instances:
   });
 
   describe('load', () => {
+    it('should load config from SHARRIFF_CONFIG environment variable', () => {
+      const yaml = `
+instances:
+  radarr:
+    type: radarr
+    host: "http://radarr:7878"
+    api_key: "radarr-key"
+`;
+
+      process.env['SHARRIFF_CONFIG'] = yaml;
+      delete process.env['SHARRIFF_CONFIG_FILE'];
+
+      const config = loadConfig();
+
+      expect(config.instances.radarr).toBeDefined();
+      expect(config.instances.radarr.host).toBe('http://radarr:7878');
+      expect(readFileSync).not.toHaveBeenCalled();
+    });
+
+    it('should prioritize SHARRIFF_CONFIG over SHARRIFF_CONFIG_FILE', () => {
+      const envYaml = `
+instances:
+  radarr:
+    type: radarr
+    host: "http://env.radarr:7878"
+    api_key: "env-key"
+`;
+
+      const fileYaml = `
+instances:
+  radarr:
+    type: radarr
+    host: "http://file.radarr:7878"
+    api_key: "file-key"
+`;
+
+      process.env['SHARRIFF_CONFIG'] = envYaml;
+      process.env['SHARRIFF_CONFIG_FILE'] = '/path/to/config.yaml';
+      vi.mocked(readFileSync).mockReturnValue(fileYaml);
+
+      const config = loadConfig();
+
+      expect(config.instances.radarr.host).toBe('http://env.radarr:7878');
+      expect(config.instances.radarr.api_key).toBe('env-key');
+      expect(readFileSync).not.toHaveBeenCalled();
+    });
+
     it('should load config from SHARRIFF_CONFIG_FILE environment variable', () => {
       const yaml = `
 instances:
@@ -317,6 +364,7 @@ instances:
     api_key: "sonarr-key"
 `;
 
+      delete process.env['SHARRIFF_CONFIG'];
       process.env['SHARRIFF_CONFIG_FILE'] = '/path/to/config.yaml';
       vi.mocked(readFileSync).mockReturnValue(yaml);
 
@@ -327,13 +375,17 @@ instances:
       expect(readFileSync).toHaveBeenCalledWith('/path/to/config.yaml', 'utf-8');
     });
 
-    it('should throw error when SHARRIFF_CONFIG_FILE is not set', () => {
+    it('should throw error when neither environment variable is set', () => {
+      delete process.env['SHARRIFF_CONFIG'];
       delete process.env['SHARRIFF_CONFIG_FILE'];
 
-      expect(() => loadConfig()).toThrow('SHARRIFF_CONFIG_FILE environment variable is required');
+      expect(() => loadConfig()).toThrow(
+        'Either SHARRIFF_CONFIG or SHARRIFF_CONFIG_FILE environment variable must be set'
+      );
     });
 
     it('should throw error when file cannot be read', () => {
+      delete process.env['SHARRIFF_CONFIG'];
       process.env['SHARRIFF_CONFIG_FILE'] = '/nonexistent/config.yaml';
       vi.mocked(readFileSync).mockImplementation(() => {
         throw new Error('ENOENT: no such file or directory');
@@ -345,8 +397,16 @@ instances:
     });
 
     it('should throw error for invalid YAML in file', () => {
+      delete process.env['SHARRIFF_CONFIG'];
       process.env['SHARRIFF_CONFIG_FILE'] = '/path/to/config.yaml';
       vi.mocked(readFileSync).mockReturnValue('invalid: yaml: [[[');
+
+      expect(() => loadConfig()).toThrow('Failed to parse YAML');
+    });
+
+    it('should throw error for invalid YAML in environment variable', () => {
+      process.env['SHARRIFF_CONFIG'] = 'invalid: yaml: [[[';
+      delete process.env['SHARRIFF_CONFIG_FILE'];
 
       expect(() => loadConfig()).toThrow('Failed to parse YAML');
     });

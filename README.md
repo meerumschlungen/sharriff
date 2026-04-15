@@ -73,11 +73,80 @@ For more details, see [docker/README.md](docker/README.md).
 
 ## Configuration
 
-Sharriff requires a YAML configuration file. Set the `SHARRIFF_CONFIG_FILE` environment variable to specify the path:
+Sharriff requires a YAML configuration. You can provide it in two ways:
+
+1. **`SHARRIFF_CONFIG`** - Raw YAML configuration as an environment variable (takes priority)
+2. **`SHARRIFF_CONFIG_FILE`** - Path to a YAML configuration file
+
+If both are set, `SHARRIFF_CONFIG` takes precedence.
+
+### Configuration via File (SHARRIFF_CONFIG_FILE)
+
+The traditional approach using a configuration file:
 
 ```bash
 export SHARRIFF_CONFIG_FILE="./config.yaml"
 npm start
+```
+
+### Configuration via Environment Variable (SHARRIFF_CONFIG)
+
+For cloud-native deployments (Kubernetes, serverless, CI/CD), you can provide the entire configuration as a raw YAML string:
+
+```bash
+export SHARRIFF_CONFIG='
+global:
+  interval: 3600
+  missing_batch_size: 20
+  upgrade_batch_size: 10
+
+instances:
+  radarr:
+    type: radarr
+    host: http://radarr:7878
+    api_key: ${RADARR_API_KEY}
+'
+
+npm start
+```
+
+**Kubernetes ConfigMap Example:**
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sharriff-config
+data:
+  config.yaml: |
+    global:
+      interval: 3600
+      missing_batch_size: 20
+    instances:
+      radarr:
+        type: radarr
+        host: http://radarr:7878
+        api_key: ${RADARR_API_KEY}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sharriff
+spec:
+  containers:
+  - name: sharriff
+    image: sharriff:latest
+    env:
+    - name: SHARRIFF_CONFIG
+      valueFrom:
+        configMapKeyRef:
+          name: sharriff-config
+          key: config.yaml
+    - name: RADARR_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: arr-secrets
+          key: radarr-api-key
 ```
 
 ### Environment Variable Interpolation
