@@ -47,27 +47,36 @@ const ConfigSchema = z
   }));
 
 /**
- * Load configuration from file
- * Requires SHARRIFF_CONFIG_FILE environment variable
+ * Load configuration from environment variable or file
+ * - SHARRIFF_CONFIG: Raw YAML configuration string (takes priority)
+ * - SHARRIFF_CONFIG_FILE: Path to YAML configuration file
+ * At least one must be set
  */
 export function loadConfig(): Config {
-  const filePath = process.env['SHARRIFF_CONFIG_FILE'];
-
-  if (!filePath) {
-    throw new Error('SHARRIFF_CONFIG_FILE environment variable is required');
-  }
-
-  logger.debug({ filePath }, 'Loading configuration from file');
+  const configVar = process.env['SHARRIFF_CONFIG'];
+  const configFile = process.env['SHARRIFF_CONFIG_FILE'];
 
   let yamlContent: string;
-  try {
-    yamlContent = readFileSync(filePath, 'utf-8');
-  } catch (error) {
+
+  if (configVar) {
+    logger.debug('Loading configuration from SHARRIFF_CONFIG environment variable');
+    yamlContent = configVar;
+  } else if (configFile) {
+    logger.debug({ filePath: configFile }, 'Loading configuration from file');
+
+    try {
+      yamlContent = readFileSync(configFile, 'utf-8');
+    } catch (error) {
+      throw new Error(
+        `Failed to read configuration file '${configFile}': ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error }
+      );
+    }
+  } else {
     throw new Error(
-      `Failed to read configuration file '${filePath}': ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-      { cause: error }
+      'Either SHARRIFF_CONFIG or SHARRIFF_CONFIG_FILE environment variable must be set'
     );
   }
 

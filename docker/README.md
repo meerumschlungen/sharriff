@@ -51,6 +51,12 @@ docker run -d \
 
 ## Configuration
 
+Sharriff supports two configuration methods:
+
+### Option 1: Configuration File (SHARRIFF_CONFIG_FILE)
+
+The traditional approach using a mounted configuration file:
+
 1. Create your `.env` file in the project root (copy from `.env.example`)
 2. Create your `config.yaml` with your \*arr instance configurations
 3. Update `docker/compose.yaml` if needed to customize:
@@ -58,6 +64,28 @@ docker run -d \
    - Volume mounts
    - Network configuration
    - Environment variables
+
+### Option 2: Environment Variable (SHARRIFF_CONFIG)
+
+For cloud-native deployments, provide the raw YAML configuration as an environment variable:
+
+```bash
+docker run -d \
+  --name sharriff \
+  -e SHARRIFF_CONFIG='
+global:
+  interval: 3600
+instances:
+  radarr:
+    type: radarr
+    host: http://radarr:7878
+    api_key: ${RADARR_API_KEY}
+' \
+  -e RADARR_API_KEY=your_key \
+  sharriff:latest
+```
+
+**Note:** If both `SHARRIFF_CONFIG` and `SHARRIFF_CONFIG_FILE` are set, `SHARRIFF_CONFIG` takes precedence.
 
 ## Environment Variables
 
@@ -67,6 +95,7 @@ See the main README for full documentation. Key variables:
 - `LOG_LEVEL` - Logging level (debug/info/warn/error)
 - `LOG_FORMAT` - Log format (json/pretty)
 - `TZ` - Timezone (default: UTC)
+- `SHARRIFF_CONFIG` - Raw YAML configuration string (takes priority)
 - `SHARRIFF_CONFIG_FILE` - Config path (default: /config/sharriff.yaml)
 
 ## Image Details
