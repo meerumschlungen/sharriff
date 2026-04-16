@@ -82,7 +82,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 0, // disabled
       };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true, registerSignalHandlers: false });
 
       // Mock process.exit to prevent actual exit
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
@@ -111,7 +111,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 0,
       };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true, registerSignalHandlers: false });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
@@ -134,7 +134,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 0,
       };
 
-      const orchestrator = new Orchestrator([client1], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client1], settings, { oneShot: true, registerSignalHandlers: false });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
@@ -156,7 +156,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: -1,
       };
 
-      const orchestrator = new Orchestrator([client1], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client1], settings, { oneShot: true, registerSignalHandlers: false });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
@@ -182,6 +182,7 @@ describe('Orchestrator', () => {
 
       const orchestrator = new Orchestrator([client1, client2, client3], settings, {
         oneShot: true,
+        registerSignalHandlers: false,
       });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
@@ -205,7 +206,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 10,
       };
 
-      const orchestrator = new Orchestrator([client1], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client1], settings, { oneShot: true, registerSignalHandlers: false });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
@@ -230,7 +231,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 0,
       };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true, registerSignalHandlers: false });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
@@ -279,7 +280,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 0,
       };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true, registerSignalHandlers: false });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
@@ -308,7 +309,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 0,
       };
 
-      const orchestrator = new Orchestrator([client], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client], settings, { oneShot: true, registerSignalHandlers: false });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
@@ -341,7 +342,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 0,
       };
 
-      const orchestrator = new Orchestrator([client], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client], settings, { oneShot: true, registerSignalHandlers: false });
 
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
@@ -382,7 +383,7 @@ describe('Orchestrator', () => {
         upgrade_batch_size: 0,
       };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true });
+      const orchestrator = new Orchestrator([client1, client2], settings, { oneShot: true, registerSignalHandlers: false });
 
       // Immediately trigger shutdown before running
       (orchestrator as any).shouldStop = true;

@@ -11,6 +11,7 @@ import { Mutex } from '../utils/mutex.js';
 
 export interface OrchestratorOptions {
   oneShot?: boolean; // If true, run once and exit. If false, run continuously
+  registerSignalHandlers?: boolean; // If true, register SIGINT/SIGTERM handlers (default: true)
 }
 
 export class Orchestrator {
@@ -20,6 +21,8 @@ export class Orchestrator {
   private shouldStop = false;
   private shutdownEmitter = new EventEmitter();
   private workMutex = new Mutex();
+  private sigintHandler?: () => void;
+  private sigtermHandler?: () => void;
 
   constructor(clients: ArrClient[], settings: GlobalSettings, options: OrchestratorOptions = {}) {
     this.clients = clients;
@@ -31,13 +34,17 @@ export class Orchestrator {
       client.setShutdownResources(this.workMutex, this.shutdownEmitter);
     }
 
-    // Setup graceful shutdown handlers
-    process.on('SIGINT', () => {
-      void this.handleShutdown('SIGINT');
-    });
-    process.on('SIGTERM', () => {
-      void this.handleShutdown('SIGTERM');
-    });
+    // Setup graceful shutdown handlers (default: enabled)
+    if (options.registerSignalHandlers !== false) {
+      this.sigintHandler = () => {
+        void this.handleShutdown('SIGINT');
+      };
+      this.sigtermHandler = () => {
+        void this.handleShutdown('SIGTERM');
+      };
+      process.on('SIGINT', this.sigintHandler);
+      process.on('SIGTERM', this.sigtermHandler);
+    }
   }
 
   /**
@@ -185,5 +192,17 @@ export class Orchestrator {
     ]);
     logger.info('Exiting gracefully');
     process.exit(0);
+  }
+
+  /**
+   * Clean up signal handlers (useful for tests)
+   */
+  dispose(): void {
+    if (this.sigintHandler) {
+      process.off('SIGINT', this.sigintHandler);
+    }
+    if (this.sigtermHandler) {
+      process.off('SIGTERM', this.sigtermHandler);
+    }
   }
 }
