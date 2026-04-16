@@ -67,6 +67,16 @@ describe('ArrClient metadata configuration', () => {
         mediaPlural: 'albums',
       },
     ],
+    [
+      'whisparr',
+      {
+        apiVersion: 'v3',
+        commandName: 'MoviesSearch',
+        idField: 'movieIds',
+        mediaSingular: 'movie',
+        mediaPlural: 'movies',
+      },
+    ],
   ] as const)('%s client', (type, expectedMetadata) => {
     let client: ArrClient;
 

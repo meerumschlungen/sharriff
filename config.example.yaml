@@ -50,3 +50,10 @@ instances:
     api_key: 'YOUR_LIDARR_API_KEY' # or use: ${LIDARR_API_KEY}
     enabled: false
     weight: 1.0
+
+  whisparr:
+    type: whisparr
+    host: 'http://whisparr:6969'
+    api_key: 'YOUR_WHISPARR_API_KEY' # or use: ${WHISPARR_API_KEY}
+    enabled: false
+    weight: 1.0

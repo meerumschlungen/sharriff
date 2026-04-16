@@ -2,7 +2,7 @@
  * Core type definitions
  */
 
-export type ArrType = 'radarr' | 'sonarr' | 'lidarr';
+export type ArrType = 'radarr' | 'sonarr' | 'lidarr' | 'whisparr';
 
 /**
  * Available search order values

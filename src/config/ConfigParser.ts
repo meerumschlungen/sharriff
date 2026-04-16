@@ -10,7 +10,7 @@ import { SEARCH_ORDER_VALUES, DEFAULT_SEARCH_ORDER } from '../types.js';
 import { logger } from '../logger.js';
 
 // Zod schemas
-const ArrTypeSchema = z.enum(['radarr', 'sonarr', 'lidarr']);
+const ArrTypeSchema = z.enum(['radarr', 'sonarr', 'lidarr', 'whisparr']);
 
 const SearchOrderSchema = z.enum(SEARCH_ORDER_VALUES);
 

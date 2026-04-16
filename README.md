@@ -1,10 +1,10 @@
 # Sharriff
 
-Minimal TypeScript orchestration service for managing automated searches across multiple \*arr instances (Radarr, Sonarr, Lidarr).
+Minimal TypeScript orchestration service for managing automated searches across multiple \*arr instances (Radarr, Sonarr, Lidarr, Whisparr).
 
 ## Features
 
-- ✅ Multi-instance support (Radarr, Sonarr, Lidarr)
+- ✅ Multi-instance support (Radarr, Sonarr, Lidarr, Whisparr)
 - ✅ Missing item searches (items not yet downloaded)
 - ✅ Cutoff unmet searches (upgrade items that haven't reached quality cutoff)
 - ✅ Weighted distribution for prioritizing instances
