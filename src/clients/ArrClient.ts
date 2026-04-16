@@ -65,6 +65,13 @@ const CLIENT_METADATA: Record<ArrType, ClientMetadata> = {
     mediaSingular: 'album',
     mediaPlural: 'albums',
   },
+  whisparr: {
+    apiVersion: 'v3',
+    commandName: 'MoviesSearch',
+    idField: 'movieIds',
+    mediaSingular: 'movie',
+    mediaPlural: 'movies',
+  },
 };
 
 /**

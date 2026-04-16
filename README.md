@@ -1,10 +1,10 @@
 # Sharriff
 
-Minimal TypeScript orchestration service for managing automated searches across multiple \*arr instances (Radarr, Sonarr, Lidarr).
+Minimal TypeScript orchestration service for managing automated searches across multiple \*arr instances (Radarr, Sonarr, Lidarr, Whisparr).
 
 ## Features
 
-- ✅ Multi-instance support (Radarr, Sonarr, Lidarr)
+- ✅ Multi-instance support (Radarr, Sonarr, Lidarr, Whisparr)
 - ✅ Missing item searches (items not yet downloaded)
 - ✅ Cutoff unmet searches (upgrade items that haven't reached quality cutoff)
 - ✅ Weighted distribution for prioritizing instances
@@ -134,19 +134,19 @@ metadata:
   name: sharriff
 spec:
   containers:
-  - name: sharriff
-    image: sharriff:latest
-    env:
-    - name: SHARRIFF_CONFIG
-      valueFrom:
-        configMapKeyRef:
-          name: sharriff-config
-          key: config.yaml
-    - name: RADARR_API_KEY
-      valueFrom:
-        secretKeyRef:
-          name: arr-secrets
-          key: radarr-api-key
+    - name: sharriff
+      image: sharriff:latest
+      env:
+        - name: SHARRIFF_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              name: sharriff-config
+              key: config.yaml
+        - name: RADARR_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: arr-secrets
+              key: radarr-api-key
 ```
 
 ### Environment Variable Interpolation

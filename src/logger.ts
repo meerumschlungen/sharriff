@@ -39,6 +39,11 @@ function getLoggerOptions(): LoggerOptions {
     level: logLevel,
     timestamp: pino.stdTimeFunctions.isoTime,
     base: { service: 'sharriff' },
+    formatters: {
+      level: (label) => {
+        return { level: label };
+      },
+    },
   };
 }
 

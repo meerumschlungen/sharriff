@@ -82,7 +82,7 @@ instances:
       expect(config.global.dry_run).toBe(false);
     });
 
-    it('should parse all three arr types', () => {
+    it('should parse all arr instance types', () => {
       const yaml = `
 instances:
   radarr:
@@ -97,6 +97,10 @@ instances:
     type: lidarr
     host: "http://lidarr:8686"
     api_key: "key3"
+  whisparr:
+    type: whisparr
+    host: "http://whisparr:6969"
+    api_key: "key4"
 `;
 
       const config = parseConfig(yaml);
@@ -104,6 +108,7 @@ instances:
       expect(config.instances.radarr.type).toBe('radarr');
       expect(config.instances.sonarr.type).toBe('sonarr');
       expect(config.instances.lidarr.type).toBe('lidarr');
+      expect(config.instances.whisparr.type).toBe('whisparr');
     });
 
     it('should parse custom weights', () => {
@@ -449,6 +454,7 @@ instances:
       process.env['RADARR_KEY'] = 'radarr-secret';
       process.env['SONARR_KEY'] = 'sonarr-secret';
       process.env['LIDARR_KEY'] = 'lidarr-secret';
+      process.env['WHISPARR_KEY'] = 'whisparr-secret';
 
       const yaml = `
 instances:
@@ -464,6 +470,10 @@ instances:
     type: lidarr
     host: http://lidarr:8686
     api_key: \${LIDARR_KEY}
+  whisparr:
+    type: whisparr
+    host: http://whisparr:6969
+    api_key: \${WHISPARR_KEY}
 `;
 
       const config = parseConfig(yaml);
@@ -471,6 +481,7 @@ instances:
       expect(config.instances.radarr.api_key).toBe('radarr-secret');
       expect(config.instances.sonarr.api_key).toBe('sonarr-secret');
       expect(config.instances.lidarr.api_key).toBe('lidarr-secret');
+      expect(config.instances.whisparr.api_key).toBe('whisparr-secret');
     });
 
     it('should throw error for undefined environment variable', () => {
