@@ -134,19 +134,19 @@ metadata:
   name: sharriff
 spec:
   containers:
-  - name: sharriff
-    image: sharriff:latest
-    env:
-    - name: SHARRIFF_CONFIG
-      valueFrom:
-        configMapKeyRef:
-          name: sharriff-config
-          key: config.yaml
-    - name: RADARR_API_KEY
-      valueFrom:
-        secretKeyRef:
-          name: arr-secrets
-          key: radarr-api-key
+    - name: sharriff
+      image: sharriff:latest
+      env:
+        - name: SHARRIFF_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              name: sharriff-config
+              key: config.yaml
+        - name: RADARR_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: arr-secrets
+              key: radarr-api-key
 ```
 
 ### Environment Variable Interpolation
