@@ -45,6 +45,7 @@ describe('ArrClient metadata configuration', () => {
         idField: 'movieIds',
         mediaSingular: 'movie',
         mediaPlural: 'movies',
+        sortTablePrefix: 'movies',
       },
     ],
     [
@@ -55,6 +56,7 @@ describe('ArrClient metadata configuration', () => {
         idField: 'episodeIds',
         mediaSingular: 'episode',
         mediaPlural: 'episodes',
+        sortTablePrefix: 'episodes',
       },
     ],
     [
@@ -65,6 +67,7 @@ describe('ArrClient metadata configuration', () => {
         idField: 'albumIds',
         mediaSingular: 'album',
         mediaPlural: 'albums',
+        sortTablePrefix: 'albums',
       },
     ],
     [
@@ -75,6 +78,7 @@ describe('ArrClient metadata configuration', () => {
         idField: 'movieIds',
         mediaSingular: 'movie',
         mediaPlural: 'movies',
+        sortTablePrefix: 'movies',
       },
     ],
   ] as const)('%s client', (type, expectedMetadata) => {
@@ -194,7 +198,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'ascending',
       });
     });
@@ -206,7 +210,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'descending',
       });
     });
@@ -220,7 +224,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'dateAdded',
+        sortKey: 'movies.dateAdded',
         sortDirection: 'ascending',
       });
     });
@@ -232,7 +236,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'dateAdded',
+        sortKey: 'movies.dateAdded',
         sortDirection: 'descending',
       });
     });
@@ -246,7 +250,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'releaseDate',
+        sortKey: 'movies.releaseDate',
         sortDirection: 'ascending',
       });
     });
@@ -258,7 +262,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'releaseDate',
+        sortKey: 'movies.releaseDate',
         sortDirection: 'descending',
       });
     });
@@ -272,7 +276,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'title',
+        sortKey: 'movies.title',
         sortDirection: 'ascending',
       });
     });
@@ -284,7 +288,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'title',
+        sortKey: 'movies.title',
         sortDirection: 'descending',
       });
     });
@@ -298,7 +302,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'ascending',
       });
     });
@@ -314,7 +318,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'title',
+        sortKey: 'movies.title',
         sortDirection: 'ascending',
       });
     });
@@ -450,7 +454,7 @@ describe('ArrClient integration methods', () => {
 
       expect(result).toEqual(mockResponse);
       expect(mockHttpGet).toHaveBeenCalledWith('/api/v3/wanted/missing', {
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'ascending',
         page: 1,
       });
@@ -467,7 +471,7 @@ describe('ArrClient integration methods', () => {
 
       expect(result).toEqual(mockResponse);
       expect(mockHttpGet).toHaveBeenCalledWith('/api/v3/wanted/cutoff', {
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'ascending',
       });
     });
