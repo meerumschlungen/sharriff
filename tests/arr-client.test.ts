@@ -45,6 +45,7 @@ describe('ArrClient metadata configuration', () => {
         idField: 'movieIds',
         mediaSingular: 'movie',
         mediaPlural: 'movies',
+        sortTablePrefix: 'movies',
       },
     ],
     [
@@ -55,6 +56,7 @@ describe('ArrClient metadata configuration', () => {
         idField: 'episodeIds',
         mediaSingular: 'episode',
         mediaPlural: 'episodes',
+        sortTablePrefix: 'episodes',
       },
     ],
     [
@@ -65,6 +67,18 @@ describe('ArrClient metadata configuration', () => {
         idField: 'albumIds',
         mediaSingular: 'album',
         mediaPlural: 'albums',
+        sortTablePrefix: 'albums',
+      },
+    ],
+    [
+      'whisparr',
+      {
+        apiVersion: 'v3',
+        commandName: 'MoviesSearch',
+        idField: 'movieIds',
+        mediaSingular: 'movie',
+        mediaPlural: 'movies',
+        sortTablePrefix: 'movies',
       },
     ],
   ] as const)('%s client', (type, expectedMetadata) => {
@@ -184,7 +198,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'ascending',
       });
     });
@@ -196,7 +210,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'descending',
       });
     });
@@ -210,7 +224,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'dateAdded',
+        sortKey: 'movies.dateAdded',
         sortDirection: 'ascending',
       });
     });
@@ -222,7 +236,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'dateAdded',
+        sortKey: 'movies.dateAdded',
         sortDirection: 'descending',
       });
     });
@@ -236,7 +250,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'releaseDate',
+        sortKey: 'movies.releaseDate',
         sortDirection: 'ascending',
       });
     });
@@ -248,7 +262,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'releaseDate',
+        sortKey: 'movies.releaseDate',
         sortDirection: 'descending',
       });
     });
@@ -262,7 +276,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'title',
+        sortKey: 'movies.title',
         sortDirection: 'ascending',
       });
     });
@@ -274,7 +288,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'title',
+        sortKey: 'movies.title',
         sortDirection: 'descending',
       });
     });
@@ -288,7 +302,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'ascending',
       });
     });
@@ -304,7 +318,7 @@ describe('ArrClient getSortParams', () => {
       const params = (client as any).getSortParams();
 
       expect(params).toEqual({
-        sortKey: 'title',
+        sortKey: 'movies.title',
         sortDirection: 'ascending',
       });
     });
@@ -440,7 +454,7 @@ describe('ArrClient integration methods', () => {
 
       expect(result).toEqual(mockResponse);
       expect(mockHttpGet).toHaveBeenCalledWith('/api/v3/wanted/missing', {
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'ascending',
         page: 1,
       });
@@ -457,7 +471,7 @@ describe('ArrClient integration methods', () => {
 
       expect(result).toEqual(mockResponse);
       expect(mockHttpGet).toHaveBeenCalledWith('/api/v3/wanted/cutoff', {
-        sortKey: 'lastSearchTime',
+        sortKey: 'movies.lastSearchTime',
         sortDirection: 'ascending',
       });
     });
@@ -690,6 +704,60 @@ describe('ArrClient integration methods', () => {
       // Verify internal state (accessing private fields for testing)
       expect((client as any).workMutex).toBe(mockMutex);
       expect((client as any).shutdownEmitter).toBe(mockEmitter);
+    });
+
+    it('should use interruptible sleep during stagger when shutdown resources are set', async () => {
+      vi.useFakeTimers();
+
+      const settings = createSettings('last_searched_ascending');
+      settings.stagger_interval_seconds = 2;
+
+      // Test with Whisparr to ensure coverage for new arr type
+      const client = new ArrClient(
+        'whisparr',
+        'test-whisparr',
+        'http://whisparr:6969',
+        'test-key',
+        settings,
+        1.0
+      );
+
+      // Import dependencies for shutdown
+      const { Mutex } = await import('../src/utils/mutex.js');
+      const { EventEmitter } = await import('events');
+
+      const mockMutex = new Mutex();
+      const mockEmitter = new EventEmitter();
+
+      // Set shutdown resources so the stagger delay code path is executed
+      client.setShutdownResources(mockMutex, mockEmitter);
+
+      // Mock triggerItemSearch to avoid HTTP complexity
+      const mockTriggerItemSearch = vi.fn().mockResolvedValue(undefined);
+      (client as any).triggerItemSearch = mockTriggerItemSearch;
+
+      const items: MediaItem[] = [
+        { id: 1, title: 'Movie 1' },
+        { id: 2, title: 'Movie 2' },
+        { id: 3, title: 'Movie 3' },
+      ];
+
+      // Start the staggered search
+      const promise = (client as any).triggerSearchesWithStagger(items);
+
+      // Fast-forward through all timers to execute stagger delays
+      await vi.runAllTimersAsync();
+      await promise;
+
+      // Should be called once for each item
+      expect(mockTriggerItemSearch).toHaveBeenCalledTimes(3);
+
+      // Verify it was called with the correct items
+      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(1, items[0]);
+      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(2, items[1]);
+      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(3, items[2]);
+
+      vi.useRealTimers();
     });
   });
 });

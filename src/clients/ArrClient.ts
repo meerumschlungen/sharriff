@@ -4,7 +4,7 @@
 
 import type { GlobalSettings, MediaItem, ArrType } from '../types.js';
 import { DEFAULT_SEARCH_ORDER } from '../types.js';
-import { HttpClient } from '../http/HttpClient.js';
+import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../http/HttpClient.js';
 import { createLogger } from '../logger.js';
 import type { Logger } from 'pino';
 import { interruptibleSleep } from '../utils/shutdown.js';
@@ -38,10 +38,15 @@ interface ClientMetadata {
   idField: string;
   mediaSingular: string;
   mediaPlural: string;
+  sortTablePrefix: string;
 }
 
 /**
  * Registry of client-specific metadata
+ * NOTE: sortTablePrefix specifies the entity type returned by wanted/missing:
+ * - Radarr/Whisparr: movies (movie entities)
+ * - Sonarr: episodes (episode entities, NOT series)
+ * - Lidarr: albums (album entities, NOT artists)
  */
 const CLIENT_METADATA: Record<ArrType, ClientMetadata> = {
   radarr: {
@@ -50,6 +55,7 @@ const CLIENT_METADATA: Record<ArrType, ClientMetadata> = {
     idField: 'movieIds',
     mediaSingular: 'movie',
     mediaPlural: 'movies',
+    sortTablePrefix: 'movies',
   },
   sonarr: {
     apiVersion: 'v3',
@@ -57,6 +63,7 @@ const CLIENT_METADATA: Record<ArrType, ClientMetadata> = {
     idField: 'episodeIds',
     mediaSingular: 'episode',
     mediaPlural: 'episodes',
+    sortTablePrefix: 'episodes',
   },
   lidarr: {
     apiVersion: 'v1',
@@ -64,13 +71,22 @@ const CLIENT_METADATA: Record<ArrType, ClientMetadata> = {
     idField: 'albumIds',
     mediaSingular: 'album',
     mediaPlural: 'albums',
+    sortTablePrefix: 'albums',
+  },
+  whisparr: {
+    apiVersion: 'v3',
+    commandName: 'MoviesSearch',
+    idField: 'movieIds',
+    mediaSingular: 'movie',
+    mediaPlural: 'movies',
+    sortTablePrefix: 'movies',
   },
 };
 
 /**
- * Sort key mapping for search orders
+ * Base sort field names (without table prefix)
  */
-const SORT_KEY_MAP: Record<string, string> = {
+const BASE_SORT_FIELDS: Record<string, string> = {
   last_searched: 'lastSearchTime',
   last_added: 'dateAdded',
   release_date: 'releaseDate',
@@ -84,6 +100,7 @@ export class ArrClient {
   protected http: HttpClient;
   protected logger: Logger;
   private metadata: ClientMetadata;
+  private httpConfig: { baseURL: string; apiKey: string; timeout: number };
   private workMutex?: Mutex;
   private shutdownEmitter?: EventEmitter;
 
@@ -101,11 +118,13 @@ export class ArrClient {
     this.metadata = CLIENT_METADATA[type];
     this.logger = createLogger({ instance: name });
 
-    this.http = new HttpClient({
+    this.httpConfig = {
       baseURL: url.replace(/\/$/, ''),
       apiKey,
-      timeout: 30000,
-    });
+      timeout: DEFAULT_TIMEOUT,
+    };
+
+    this.http = createHttpClient(this.httpConfig);
   }
 
   /**
@@ -137,8 +156,13 @@ export class ArrClient {
       this.settings.search_order === 'random' ? DEFAULT_SEARCH_ORDER : this.settings.search_order;
     const lastUnderscore = order.lastIndexOf('_');
     const prefix = order.slice(0, lastUnderscore);
+
+    // Build qualified sort key: "movies.lastSearchTime", "episodes.lastSearchTime", etc.
+    const baseField = BASE_SORT_FIELDS[prefix] ?? 'title';
+    const sortKey = `${this.metadata.sortTablePrefix}.${baseField}`;
+
     return {
-      sortKey: SORT_KEY_MAP[prefix] ?? 'title',
+      sortKey,
       sortDirection: order.slice(lastUnderscore + 1),
     };
   }
@@ -180,6 +204,12 @@ export class ArrClient {
   setShutdownResources(mutex: Mutex, emitter: EventEmitter): void {
     this.workMutex = mutex;
     this.shutdownEmitter = emitter;
+
+    // Recreate HTTP client with shutdown emitter to make retry backoff interruptible
+    this.http = createHttpClient({
+      ...this.httpConfig,
+      shutdownEmitter: emitter,
+    });
   }
 
   /**

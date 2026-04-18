@@ -51,7 +51,5 @@ coverage/
 *.temp
 .cache/
 
-config.test.yaml
-config.test.yaml, config.minimal.yaml, config.invalid.yaml
-config.test-orchestration.yaml
-test-api-sort.sh
+config.*.yaml
+!config.example.yaml
