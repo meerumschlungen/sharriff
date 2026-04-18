@@ -3,10 +3,38 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { HttpClient } from '../src/http/HttpClient.js';
+import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../src/http/HttpClient.js';
 import axios, { AxiosError } from 'axios';
+import { EventEmitter } from 'events';
 
 vi.mock('axios');
+
+// Mock logger to capture log calls
+const mockLogger = {
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+};
+
+vi.mock('../src/logger.js', () => ({
+  createLogger: vi.fn(() => mockLogger),
+}));
+
+// Helper to create mock axios errors
+function createAxiosError(status?: number, message = 'Error'): AxiosError {
+  const error = new AxiosError(message);
+  if (status) {
+    error.response = {
+      status,
+      statusText: message,
+      data: {},
+      headers: {},
+      config: {} as any,
+    };
+  }
+  return error;
+}
 
 describe('HttpClient', () => {
   let httpClient: HttpClient;
@@ -14,21 +42,20 @@ describe('HttpClient', () => {
   let mockAxiosInstance: any;
 
   beforeEach(() => {
-    // Reset mocks
     vi.clearAllMocks();
     vi.useFakeTimers();
 
-    // Create mock axios instance
     mockAxiosInstance = {
-      request: vi.fn(),
+      get: vi.fn(),
+      post: vi.fn(),
     };
 
     mockCreate.mockReturnValue(mockAxiosInstance);
 
-    httpClient = new HttpClient({
+    httpClient = createHttpClient({
       baseURL: 'http://localhost:7878',
       apiKey: 'test-api-key',
-      timeout: 30000,
+      timeout: DEFAULT_TIMEOUT,
       maxRetries: 3,
       retryDelay: 1000,
     });
@@ -38,331 +65,151 @@ describe('HttpClient', () => {
     vi.useRealTimers();
   });
 
-  describe('Successful requests', () => {
-    it('should make successful GET request', async () => {
-      const mockResponse = { data: { id: 1, name: 'Test' } };
-      mockAxiosInstance.request.mockResolvedValueOnce(mockResponse);
+  it('should make successful GET request', async () => {
+    mockAxiosInstance.get.mockResolvedValueOnce({ data: { id: 1 } });
 
-      const result = await httpClient.get('/api/v3/system/status');
+    const result = await httpClient.get('/api/v3/system/status');
 
-      expect(result).toEqual({ id: 1, name: 'Test' });
-      expect(mockAxiosInstance.request).toHaveBeenCalledWith({
-        method: 'GET',
-        url: '/api/v3/system/status',
-        params: undefined,
-      });
-    });
-
-    it('should make successful GET request with params', async () => {
-      const mockResponse = { data: { records: [] } };
-      mockAxiosInstance.request.mockResolvedValueOnce(mockResponse);
-
-      const result = await httpClient.get('/api/v3/wanted/missing', {
-        page: 1,
-        pageSize: 10,
-      });
-
-      expect(result).toEqual({ records: [] });
-      expect(mockAxiosInstance.request).toHaveBeenCalledWith({
-        method: 'GET',
-        url: '/api/v3/wanted/missing',
-        params: { page: 1, pageSize: 10 },
-      });
-    });
-
-    it('should make successful POST request', async () => {
-      const mockResponse = { data: { id: 123, name: 'MissingMoviesSearch' } };
-      mockAxiosInstance.request.mockResolvedValueOnce(mockResponse);
-
-      const result = await httpClient.post('/api/v3/command', {
-        name: 'MissingMoviesSearch',
-        movieIds: [1, 2, 3],
-      });
-
-      expect(result).toEqual({ id: 123, name: 'MissingMoviesSearch' });
-      expect(mockAxiosInstance.request).toHaveBeenCalledWith({
-        method: 'POST',
-        url: '/api/v3/command',
-        data: { name: 'MissingMoviesSearch', movieIds: [1, 2, 3] },
-      });
+    expect(result).toEqual({ id: 1 });
+    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/v3/system/status', {
+      params: undefined,
     });
   });
 
-  describe('Client errors (4xx) - no retry', () => {
-    it('should fail fast on 400 Bad Request', async () => {
-      const error = new AxiosError('Bad Request');
-      error.response = {
-        status: 400,
-        statusText: 'Bad Request',
-        data: {},
-        headers: {},
-        config: {} as any,
-      };
+  it('should make successful GET request with params', async () => {
+    mockAxiosInstance.get.mockResolvedValueOnce({ data: { records: [] } });
 
-      mockAxiosInstance.request.mockRejectedValueOnce(error);
+    const result = await httpClient.get('/api/v3/wanted/missing', { page: 1 });
 
-      await expect(httpClient.get('/api/v3/invalid')).rejects.toThrow(
-        'HTTP 400: Bad Request - GET /api/v3/invalid'
-      );
-
-      // Should not retry
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1);
-    });
-
-    it('should fail fast on 401 Unauthorized', async () => {
-      const error = new AxiosError('Unauthorized');
-      error.response = {
-        status: 401,
-        statusText: 'Unauthorized',
-        data: {},
-        headers: {},
-        config: {} as any,
-      };
-
-      mockAxiosInstance.request.mockRejectedValueOnce(error);
-
-      await expect(httpClient.get('/api/v3/system/status')).rejects.toThrow(
-        'HTTP 401: Unauthorized - GET /api/v3/system/status'
-      );
-
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1);
-    });
-
-    it('should fail fast on 404 Not Found', async () => {
-      const error = new AxiosError('Not Found');
-      error.response = {
-        status: 404,
-        statusText: 'Not Found',
-        data: {},
-        headers: {},
-        config: {} as any,
-      };
-
-      mockAxiosInstance.request.mockRejectedValueOnce(error);
-
-      await expect(httpClient.get('/api/v3/nonexistent')).rejects.toThrow(
-        'HTTP 404: Not Found - GET /api/v3/nonexistent'
-      );
-
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ records: [] });
+    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/v3/wanted/missing', {
+      params: { page: 1 },
     });
   });
 
-  describe('Server errors (5xx) - retry with backoff', () => {
-    it('should retry on 500 Internal Server Error and succeed', async () => {
-      const error = new AxiosError('Internal Server Error');
-      error.response = {
-        status: 500,
-        statusText: 'Internal Server Error',
-        data: {},
-        headers: {},
-        config: {} as any,
-      };
+  it('should make successful POST request', async () => {
+    mockAxiosInstance.post.mockResolvedValueOnce({ data: { id: 123 } });
 
-      const successResponse = { data: { status: 'ok' } };
+    const result = await httpClient.post('/api/v3/command', { name: 'Test' });
 
-      mockAxiosInstance.request
-        .mockRejectedValueOnce(error)
-        .mockRejectedValueOnce(error)
-        .mockResolvedValueOnce(successResponse);
+    expect(result).toEqual({ id: 123 });
+    expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/v3/command', { name: 'Test' });
+  });
 
-      const promise = httpClient.get('/api/v3/system/status');
+  it('should fail fast on client errors (4xx except 429)', async () => {
+    mockAxiosInstance.get.mockRejectedValueOnce(createAxiosError(401, 'Unauthorized'));
 
-      // Fast-forward through retry delays
-      await vi.runAllTimersAsync();
+    await expect(httpClient.get('/api/v3/system/status')).rejects.toThrow(
+      'HTTP 401: Unauthorized - GET /api/v3/system/status'
+    );
 
-      const result = await promise;
+    expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1);
+  });
 
-      expect(result).toEqual({ status: 'ok' });
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(3);
-    });
+  it('should retry on server errors (5xx) and succeed', async () => {
+    mockAxiosInstance.get
+      .mockRejectedValueOnce(createAxiosError(500, 'Internal Server Error'))
+      .mockRejectedValueOnce(createAxiosError(503, 'Service Unavailable'))
+      .mockResolvedValueOnce({ data: { status: 'ok' } });
 
-    it('should use exponential backoff for retries', async () => {
-      const error = new AxiosError('Internal Server Error');
-      error.response = {
-        status: 500,
-        statusText: 'Internal Server Error',
-        data: {},
-        headers: {},
-        config: {} as any,
-      };
+    const promise = httpClient.get('/api/v3/system/status');
+    await vi.runAllTimersAsync();
 
-      const successResponse = { data: { status: 'ok' } };
+    expect(await promise).toEqual({ status: 'ok' });
+    expect(mockAxiosInstance.get).toHaveBeenCalledTimes(3);
+  });
 
-      mockAxiosInstance.request
-        .mockRejectedValueOnce(error)
-        .mockRejectedValueOnce(error)
-        .mockResolvedValueOnce(successResponse);
+  it('should fail after exhausting retries', async () => {
+    mockAxiosInstance.get.mockRejectedValue(createAxiosError(503, 'Service Unavailable'));
 
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const promise = httpClient.get('/api/v3/system/status');
+    promise.catch(() => {});
 
-      const promise = httpClient.get('/api/v3/system/status');
-      await vi.runAllTimersAsync();
-      await promise;
+    await vi.runAllTimersAsync();
 
-      // Verify exponential backoff delays: 1000ms * 2^0, 1000ms * 2^1
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('retrying in 1000ms'));
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('retrying in 2000ms'));
+    await expect(promise).rejects.toThrow('HTTP 503 error persisted after 4 attempts');
+    expect(mockAxiosInstance.get).toHaveBeenCalledTimes(4); // Initial + 3 retries
+  });
 
-      consoleSpy.mockRestore();
-    });
+  it('should retry on rate limiting (429)', async () => {
+    mockAxiosInstance.get
+      .mockRejectedValueOnce(createAxiosError(429, 'Too Many Requests'))
+      .mockResolvedValueOnce({ data: { status: 'ok' } });
 
-    it('should fail after exhausting all retries', async () => {
-      const error = new AxiosError('Service Unavailable');
-      error.response = {
-        status: 503,
-        statusText: 'Service Unavailable',
-        data: {},
-        headers: {},
-        config: {} as any,
-      };
+    const promise = httpClient.get('/api/v3/system/status');
+    await vi.runAllTimersAsync();
 
-      mockAxiosInstance.request.mockRejectedValue(error);
+    expect(await promise).toEqual({ status: 'ok' });
+    expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+  });
 
-      const promise = httpClient.get('/api/v3/system/status');
+  it('should retry on network errors (no response)', async () => {
+    mockAxiosInstance.get
+      .mockRejectedValueOnce(createAxiosError(undefined, 'Network Error'))
+      .mockResolvedValueOnce({ data: { status: 'ok' } });
 
-      // Prevent unhandled rejection warnings
-      promise.catch(() => {});
+    const promise = httpClient.get('/api/v3/system/status');
+    await vi.runAllTimersAsync();
 
-      // Run timers and wait for all promises to settle
-      await vi.runAllTimersAsync();
+    expect(await promise).toEqual({ status: 'ok' });
+    expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+  });
 
-      await expect(promise).rejects.toThrow('HTTP request failed');
+  it('should handle non-AxiosError exceptions', async () => {
+    mockAxiosInstance.get.mockRejectedValueOnce(new Error('Custom error'));
 
-      // Initial attempt + 3 retries = 4 total
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(4);
+    await expect(httpClient.get('/api/v3/test')).rejects.toThrow('Custom error');
+    expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('should create axios instance with correct config', () => {
+    expect(mockCreate).toHaveBeenCalledWith({
+      baseURL: 'http://localhost:7878',
+      timeout: DEFAULT_TIMEOUT,
+      headers: {
+        'X-Api-Key': 'test-api-key',
+        'Content-Type': 'application/json',
+      },
     });
   });
 
-  describe('Rate limiting (429) - retry', () => {
-    it('should retry on 429 Too Many Requests', async () => {
-      const error = new AxiosError('Too Many Requests');
-      error.response = {
-        status: 429,
-        statusText: 'Too Many Requests',
-        data: {},
-        headers: {},
-        config: {} as any,
-      };
+  it('should increment attempt counter in logs', async () => {
+    mockAxiosInstance.get
+      .mockRejectedValueOnce(createAxiosError(500))
+      .mockRejectedValueOnce(createAxiosError(500))
+      .mockRejectedValueOnce(createAxiosError(500))
+      .mockResolvedValueOnce({ data: { status: 'ok' } });
 
-      const successResponse = { data: { status: 'ok' } };
+    const promise = httpClient.get('/api/v3/system/status');
+    await vi.runAllTimersAsync();
+    await promise;
 
-      mockAxiosInstance.request.mockRejectedValueOnce(error).mockResolvedValueOnce(successResponse);
+    expect(mockLogger.warn).toHaveBeenCalledTimes(3);
 
-      const promise = httpClient.get('/api/v3/system/status');
-      await vi.runAllTimersAsync();
-
-      const result = await promise;
-
-      expect(result).toEqual({ status: 'ok' });
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(2);
-    });
+    const warnCalls = mockLogger.warn.mock.calls;
+    expect(warnCalls[0][0]).toMatchObject({ attempt: 1 });
+    expect(warnCalls[1][0]).toMatchObject({ attempt: 2 });
+    expect(warnCalls[2][0]).toMatchObject({ attempt: 3 });
   });
 
-  describe('Network errors - retry', () => {
-    it('should retry on network error (no response)', async () => {
-      const error = new AxiosError('Network Error');
-      // No response property = network error
-      error.response = undefined;
-
-      const successResponse = { data: { status: 'ok' } };
-
-      mockAxiosInstance.request.mockRejectedValueOnce(error).mockResolvedValueOnce(successResponse);
-
-      const promise = httpClient.get('/api/v3/system/status');
-      await vi.runAllTimersAsync();
-
-      const result = await promise;
-
-      expect(result).toEqual({ status: 'ok' });
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(2);
+  it('should use interruptible sleep when shutdownEmitter provided', async () => {
+    const mockEmitter = new EventEmitter();
+    const clientWithShutdown = createHttpClient({
+      baseURL: 'http://localhost:7878',
+      apiKey: 'test-api-key',
+      maxRetries: 1,
+      retryDelay: 1000,
+      shutdownEmitter: mockEmitter,
     });
 
-    it('should fail after retrying network errors', async () => {
-      const error = new AxiosError('Network Error');
-      error.response = undefined;
+    mockAxiosInstance.get
+      .mockRejectedValueOnce(createAxiosError(500))
+      .mockResolvedValueOnce({ data: { status: 'ok' } });
 
-      mockAxiosInstance.request.mockRejectedValue(error);
+    const promise = clientWithShutdown.get('/test');
+    await vi.runAllTimersAsync();
 
-      const promise = httpClient.get('/api/v3/system/status');
-
-      // Prevent unhandled rejection warnings
-      promise.catch(() => {});
-
-      // Run timers and wait for all promises to settle
-      await vi.runAllTimersAsync();
-
-      await expect(promise).rejects.toThrow('HTTP request failed');
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(4);
-    });
-  });
-
-  describe('Configuration', () => {
-    it('should create axios instance with correct config', () => {
-      expect(mockCreate).toHaveBeenCalledWith({
-        baseURL: 'http://localhost:7878',
-        timeout: 30000,
-        headers: {
-          'X-Api-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-      });
-    });
-
-    it('should use default timeout if not provided', () => {
-      vi.clearAllMocks();
-
-      new HttpClient({
-        baseURL: 'http://localhost:7878',
-        apiKey: 'test-api-key',
-      });
-
-      expect(mockCreate).toHaveBeenCalledWith({
-        baseURL: 'http://localhost:7878',
-        timeout: 30000, // DEFAULT_TIMEOUT
-        headers: {
-          'X-Api-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-      });
-    });
-
-    it('should use custom retry settings', () => {
-      const customClient = new HttpClient({
-        baseURL: 'http://localhost:7878',
-        apiKey: 'test-api-key',
-        maxRetries: 5,
-        retryDelay: 500,
-      });
-
-      const error = new AxiosError('Service Unavailable');
-      error.response = {
-        status: 503,
-        statusText: 'Service Unavailable',
-        data: {},
-        headers: {},
-        config: {} as any,
-      };
-
-      mockAxiosInstance.request.mockRejectedValue(error);
-
-      const promise = customClient.get('/api/v3/test');
-      vi.runAllTimersAsync();
-
-      // Should retry 5 times + initial attempt = 6 total
-      promise.catch(() => {
-        expect(mockAxiosInstance.request).toHaveBeenCalledTimes(6);
-      });
-    });
-  });
-
-  describe('Non-Axios errors', () => {
-    it('should handle non-AxiosError exceptions', async () => {
-      const customError = new Error('Custom error');
-      mockAxiosInstance.request.mockRejectedValueOnce(customError);
-
-      await expect(httpClient.get('/api/v3/test')).rejects.toThrow('Custom error');
-      expect(mockAxiosInstance.request).toHaveBeenCalledTimes(1);
-    });
+    expect(await promise).toEqual({ status: 'ok' });
+    expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
   });
 });

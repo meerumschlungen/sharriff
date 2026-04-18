@@ -4,7 +4,7 @@
 
 import type { GlobalSettings, MediaItem, ArrType } from '../types.js';
 import { DEFAULT_SEARCH_ORDER } from '../types.js';
-import { HttpClient } from '../http/HttpClient.js';
+import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../http/HttpClient.js';
 import { createLogger } from '../logger.js';
 import type { Logger } from 'pino';
 import { interruptibleSleep } from '../utils/shutdown.js';
@@ -100,6 +100,7 @@ export class ArrClient {
   protected http: HttpClient;
   protected logger: Logger;
   private metadata: ClientMetadata;
+  private httpConfig: { baseURL: string; apiKey: string; timeout: number };
   private workMutex?: Mutex;
   private shutdownEmitter?: EventEmitter;
 
@@ -117,11 +118,13 @@ export class ArrClient {
     this.metadata = CLIENT_METADATA[type];
     this.logger = createLogger({ instance: name });
 
-    this.http = new HttpClient({
+    this.httpConfig = {
       baseURL: url.replace(/\/$/, ''),
       apiKey,
-      timeout: 30000,
-    });
+      timeout: DEFAULT_TIMEOUT,
+    };
+
+    this.http = createHttpClient(this.httpConfig);
   }
 
   /**
@@ -201,6 +204,12 @@ export class ArrClient {
   setShutdownResources(mutex: Mutex, emitter: EventEmitter): void {
     this.workMutex = mutex;
     this.shutdownEmitter = emitter;
+
+    // Recreate HTTP client with shutdown emitter to make retry backoff interruptible
+    this.http = createHttpClient({
+      ...this.httpConfig,
+      shutdownEmitter: emitter,
+    });
   }
 
   /**
