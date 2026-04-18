@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { type HttpClient, createHttpClient } from '../src/http/HttpClient.js';
+import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../src/http/HttpClient.js';
 import axios, { AxiosError } from 'axios';
 
 vi.mock('axios');
@@ -80,7 +80,7 @@ describe('HttpClient', () => {
     httpClient = createHttpClient({
       baseURL: 'http://localhost:7878',
       apiKey: 'test-api-key',
-      timeout: 30000,
+      timeout: DEFAULT_TIMEOUT,
       maxRetries: 3,
       retryDelay: 1000,
     });
@@ -301,7 +301,7 @@ describe('HttpClient', () => {
     it('should create axios instance with correct config', () => {
       expect(mockCreate).toHaveBeenCalledWith({
         baseURL: 'http://localhost:7878',
-        timeout: 30000,
+        timeout: DEFAULT_TIMEOUT,
         headers: {
           'X-Api-Key': 'test-api-key',
           'Content-Type': 'application/json',
@@ -319,7 +319,7 @@ describe('HttpClient', () => {
 
       expect(mockCreate).toHaveBeenCalledWith({
         baseURL: 'http://localhost:7878',
-        timeout: 30000, // DEFAULT_TIMEOUT
+        timeout: DEFAULT_TIMEOUT,
         headers: {
           'X-Api-Key': 'test-api-key',
           'Content-Type': 'application/json',

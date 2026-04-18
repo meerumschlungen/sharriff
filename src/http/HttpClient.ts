@@ -39,7 +39,7 @@ export interface HttpClient {
   post<T>(url: string, data?: unknown): Promise<T>;
 }
 
-const DEFAULT_TIMEOUT = 30000; // 30 seconds
+export const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const DEFAULT_MAX_RETRIES = 10;
 const DEFAULT_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 60000; // 60 seconds cap for exponential backoff

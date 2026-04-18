@@ -4,7 +4,7 @@
 
 import type { GlobalSettings, MediaItem, ArrType } from '../types.js';
 import { DEFAULT_SEARCH_ORDER } from '../types.js';
-import { type HttpClient, createHttpClient } from '../http/HttpClient.js';
+import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../http/HttpClient.js';
 import { createLogger } from '../logger.js';
 import type { Logger } from 'pino';
 import { interruptibleSleep } from '../utils/shutdown.js';
@@ -121,7 +121,7 @@ export class ArrClient {
     this.httpConfig = {
       baseURL: url.replace(/\/$/, ''),
       apiKey,
-      timeout: 30000,
+      timeout: DEFAULT_TIMEOUT,
     };
 
     this.http = createHttpClient(this.httpConfig);
