@@ -9,6 +9,8 @@ import { interruptibleSleep } from '../utils/shutdown.js';
 import { EventEmitter } from 'events';
 import { Mutex } from '../utils/mutex.js';
 
+const GRACEFUL_SHUTDOWN_TIMEOUT = 30000; // 30 seconds - max wait for in-flight operations
+
 export interface OrchestratorOptions {
   oneShot?: boolean; // If true, run once and exit. If false, run continuously
   registerSignalHandlers?: boolean; // If true, register SIGINT/SIGTERM handlers (default: true)
@@ -185,10 +187,10 @@ export class Orchestrator {
     this.shouldStop = true;
     this.shutdownEmitter.emit('shutdown');
 
-    // Wait for in-flight operations (max 30s)
+    // Wait for in-flight operations
     await Promise.race([
       this.workMutex.waitForUnlock(),
-      new Promise((resolve) => setTimeout(resolve, 30000)),
+      new Promise((resolve) => setTimeout(resolve, GRACEFUL_SHUTDOWN_TIMEOUT)),
     ]);
     logger.info('Exiting gracefully');
     process.exit(0);
