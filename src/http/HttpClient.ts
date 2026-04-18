@@ -18,7 +18,7 @@
  * Uses axios response interceptor for idiomatic retry handling.
  */
 
-import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { createLogger } from '../logger.js';
 import { interruptibleSleep } from '../utils/shutdown.js';
 import type { EventEmitter } from 'events';
@@ -79,8 +79,19 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
     baseURL: config.baseURL,
   });
 
-  // Use WeakMap to track retry counts without mutating config
-  const retryCountMap = new WeakMap<InternalAxiosRequestConfig, number>();
+  // Symbol for attaching retry count to config (preserved across axios internal operations)
+  const RETRY_COUNT_SYMBOL = Symbol('retryCount');
+
+  // Helper to get/set retry count on config
+  type ConfigWithRetry = Record<symbol, number>;
+
+  const getRetryCount = (cfg: object): number => {
+    return (cfg as ConfigWithRetry)[RETRY_COUNT_SYMBOL] ?? 0;
+  };
+
+  const setRetryCount = (cfg: object, count: number): void => {
+    (cfg as ConfigWithRetry)[RETRY_COUNT_SYMBOL] = count;
+  };
 
   const client = axios.create({
     baseURL: config.baseURL,
@@ -112,13 +123,13 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
         return Promise.reject(new Error(errorMessage, { cause: error }));
       }
 
-      // Get retry count from WeakMap (no mutation!)
-      const currentRetries = retryCountMap.get(originalConfig) ?? 0;
+      // Get retry count from config object (attached as symbol property)
+      const currentRetries = getRetryCount(originalConfig);
 
       // Check if we should retry
       if (isRetryableError(error) && currentRetries < maxRetries) {
         const nextRetryCount = currentRetries + 1;
-        retryCountMap.set(originalConfig, nextRetryCount);
+        setRetryCount(originalConfig, nextRetryCount);
 
         const delay = Math.min(retryDelay * Math.pow(2, currentRetries), MAX_RETRY_DELAY);
 
