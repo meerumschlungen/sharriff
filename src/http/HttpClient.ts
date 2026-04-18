@@ -1,8 +1,27 @@
 /**
- * HTTP client with retry logic and exponential backoff
+ * HTTP client with retry logic and capped exponential backoff
+ *
+ * Features:
+ * - Automatic retry for transient errors (5xx, 429, network errors)
+ * - Exponential backoff with 60-second cap
+ * - Interruptible retry delays for graceful shutdown (when shutdownEmitter provided)
+ * - Fast-fail for client errors (4xx except 429)
+ * - Structured logging for retry attempts
+ * - ~5 minute tolerance for service outages (10 retries)
+ *
+ * Default configuration:
+ * - 10 retries (11 total attempts)
+ * - 1 second base delay
+ * - Backoff: 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s, 60s, 60s (~5 min total)
+ * - 30 second request timeout
+ *
+ * Uses axios response interceptor for idiomatic retry handling.
  */
 
-import axios, { type AxiosInstance, type AxiosRequestConfig, AxiosError } from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { createLogger } from '../logger.js';
+import { interruptibleSleep } from '../utils/shutdown.js';
+import type { EventEmitter } from 'events';
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -12,94 +31,137 @@ export interface HttpClientConfig {
   timeout?: number;
   maxRetries?: number;
   retryDelay?: number;
+  shutdownEmitter?: EventEmitter; // Optional: makes retry backoff interruptible
+}
+
+export interface HttpClient {
+  get<T>(url: string, params?: Record<string, unknown>): Promise<T>;
+  post<T>(url: string, data?: unknown): Promise<T>;
 }
 
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
-const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_MAX_RETRIES = 10;
 const DEFAULT_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 60000; // 60 seconds cap for exponential backoff
 
-export class HttpClient {
-  private client: AxiosInstance;
-  private maxRetries: number;
-  private retryDelay: number;
+/**
+ * Check if error is a client error (4xx except 429) - no retry
+ */
+function isClientError(error: AxiosError): boolean {
+  const status = error.response?.status;
+  return !!status && status >= 400 && status < 500 && status !== 429;
+}
 
-  constructor(config: HttpClientConfig) {
-    this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
-    this.retryDelay = config.retryDelay ?? DEFAULT_RETRY_DELAY;
+/**
+ * Check if error is retryable (5xx, 429, or network error)
+ */
+function isRetryableError(error: AxiosError): boolean {
+  const status = error.response?.status;
+  return (
+    !error.response || // Network error
+    status === 429 || // Rate limit
+    (!!status && status >= 500) // Server error
+  );
+}
 
-    this.client = axios.create({
-      baseURL: config.baseURL,
-      timeout: config.timeout ?? DEFAULT_TIMEOUT,
-      headers: {
-        'X-Api-Key': config.apiKey,
-        'Content-Type': 'application/json',
-      },
-    });
-  }
+/**
+ * Create an HTTP client with automatic retry logic
+ *
+ * Returns an object with get() and post() methods that automatically
+ * retry transient errors with exponential backoff.
+ */
+export function createHttpClient(config: HttpClientConfig): HttpClient {
+  const maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+  const retryDelay = config.retryDelay ?? DEFAULT_RETRY_DELAY;
+  const shutdownEmitter = config.shutdownEmitter;
+  const logger = createLogger({
+    component: 'HttpClient',
+    baseURL: config.baseURL,
+  });
 
-  /**
-   * Make HTTP request with retry logic
-   */
-  async request<T>(config: AxiosRequestConfig): Promise<T> {
-    let lastError: Error | undefined;
+  // Use WeakMap to track retry counts without mutating config
+  const retryCountMap = new WeakMap<InternalAxiosRequestConfig, number>();
 
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      try {
-        const response = await this.client.request<T>(config);
-        return response.data;
-      } catch (error) {
-        if (error instanceof AxiosError) {
-          // Fail fast for client errors (4xx except 429)
-          if (
-            error.response?.status &&
-            error.response.status >= 400 &&
-            error.response.status < 500 &&
-            error.response.status !== 429
-          ) {
-            throw new Error(
-              `HTTP ${error.response.status}: ${error.response.statusText} - ${config.method} ${config.url}`,
-              { cause: error }
-            );
-          }
+  const client = axios.create({
+    baseURL: config.baseURL,
+    timeout: config.timeout ?? DEFAULT_TIMEOUT,
+    headers: {
+      'X-Api-Key': config.apiKey,
+      'Content-Type': 'application/json',
+    },
+  });
 
-          // Retry for transient errors (5xx, 429, network errors)
-          const isTransient =
-            !error.response || // network error
-            error.response.status === 429 || // rate limit
-            error.response.status >= 500; // server error
-
-          if (isTransient && attempt < this.maxRetries) {
-            const delay = this.retryDelay * Math.pow(2, attempt);
-            console.log(
-              `Transient error on attempt ${attempt + 1}/${this.maxRetries + 1}, retrying in ${delay}ms...`
-            );
-            await sleep(delay);
-            lastError = error;
-            continue;
-          }
-        }
-
-        // Exhausted retries or non-retryable error
-        throw error instanceof AxiosError
-          ? new Error(`HTTP request failed: ${error.message}`)
-          : error;
+  // Configure response interceptor for automatic retry logic
+  client.interceptors.response.use(
+    (response) => response,
+    async (error: unknown) => {
+      // Check if error is retryable
+      if (!(error instanceof AxiosError)) {
+        return Promise.reject(error instanceof Error ? error : new Error(String(error)));
       }
+
+      const originalConfig = error.config!;
+
+      if (!originalConfig) {
+        return Promise.reject(new Error('Request configuration missing', { cause: error }));
+      }
+
+      // Fail fast for client errors (4xx except 429)
+      if (isClientError(error)) {
+        const errorMessage = `HTTP ${error.response?.status}: ${error.response?.statusText} - ${originalConfig.method?.toUpperCase()} ${originalConfig.url}`;
+        return Promise.reject(new Error(errorMessage, { cause: error }));
+      }
+
+      // Get retry count from WeakMap (no mutation!)
+      const currentRetries = retryCountMap.get(originalConfig) ?? 0;
+
+      // Check if we should retry
+      if (isRetryableError(error) && currentRetries < maxRetries) {
+        const nextRetryCount = currentRetries + 1;
+        retryCountMap.set(originalConfig, nextRetryCount);
+
+        const delay = Math.min(retryDelay * Math.pow(2, currentRetries), MAX_RETRY_DELAY);
+
+        logger.warn(
+          {
+            attempt: nextRetryCount,
+            maxAttempts: maxRetries + 1,
+            retryDelayMs: delay,
+            method: originalConfig.method?.toUpperCase(),
+            url: originalConfig.url,
+            status: error.response?.status,
+            message: error.message,
+          },
+          'Transient error, retrying...'
+        );
+
+        // Use interruptible sleep if shutdown emitter available (for graceful shutdown)
+        if (shutdownEmitter) {
+          await interruptibleSleep(delay, shutdownEmitter);
+        } else {
+          await sleep(delay);
+        }
+        return client.request(originalConfig);
+      }
+
+      // Exhausted retries
+      const errorMessage = error.response
+        ? `HTTP ${error.response.status} error persisted after ${currentRetries + 1} attempts: ${originalConfig.method?.toUpperCase()} ${originalConfig.url}`
+        : `Network error persisted after ${currentRetries + 1} attempts: ${originalConfig.method?.toUpperCase()} ${originalConfig.url}`;
+      return Promise.reject(new Error(errorMessage, { cause: error }));
     }
+  );
 
-    throw lastError ?? new Error('Request failed after retries');
-  }
+  // Return public API
+  return {
+    async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+      const response = await client.get<T>(url, { params });
+      return response.data;
+    },
 
-  /**
-   * GET request
-   */
-  async get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-    return this.request<T>({ method: 'GET', url, params });
-  }
-
-  /**
-   * POST request
-   */
-  async post<T>(url: string, data?: unknown): Promise<T> {
-    return this.request<T>({ method: 'POST', url, data });
-  }
+    async post<T>(url: string, data?: unknown): Promise<T> {
+      const response = await client.post<T>(url, data);
+      return response.data;
+    },
+  };
 }
