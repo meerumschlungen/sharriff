@@ -3,7 +3,7 @@
 # ===================================
 # Builder Stage
 # ===================================
-FROM node:24-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS builder
+FROM node:24.15.0-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS builder
 
 WORKDIR /build
 
@@ -23,7 +23,7 @@ RUN npm run build
 # ===================================
 # Production Stage
 # ===================================
-FROM node:24-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS production
+FROM node:24.15.0-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS production
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
