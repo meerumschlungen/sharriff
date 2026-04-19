@@ -104,7 +104,7 @@ export class Orchestrator {
 
     for (const client of this.clients) {
       if (this.shouldStop) {
-        logger.warn({ instance: client.name }, 'Skipping due to shutdown request');
+        logger.warn({ instance: client.name, cycleId }, 'Skipping due to shutdown request');
         continue;
       }
 
@@ -120,7 +120,10 @@ export class Orchestrator {
         );
 
         if (clientBatchSize === 0) {
-          logger.debug({ instance: client.name }, 'Missing triggers disabled (batch size = 0)');
+          logger.debug(
+            { instance: client.name, cycleId },
+            'Missing triggers disabled (batch size = 0)'
+          );
           continue;
         }
 
@@ -134,15 +137,19 @@ export class Orchestrator {
                 : clientBatchSize === -1
                   ? 'Unlimited'
                   : clientBatchSize,
+            cycleId,
           },
           'Processing instance'
         );
 
-        const missingCount = await client.triggerMissingSearches(clientBatchSize);
+        const missingCount = await client.triggerMissingSearches(clientBatchSize, cycleId);
 
         // Also trigger searches for cutoff unmet items
         if (cutoffBatchSize === 0) {
-          logger.debug({ instance: client.name }, 'Cutoff triggers disabled (batch size = 0)');
+          logger.debug(
+            { instance: client.name, cycleId },
+            'Cutoff triggers disabled (batch size = 0)'
+          );
           continue;
         }
 
@@ -155,10 +162,11 @@ export class Orchestrator {
                 : cutoffBatchSize === -1
                   ? 'Unlimited'
                   : cutoffBatchSize,
+            cycleId,
           },
           'Processing cutoff unmet items'
         );
-        const cutoffCount = await client.triggerCutoffSearches(cutoffBatchSize);
+        const cutoffCount = await client.triggerCutoffSearches(cutoffBatchSize, cycleId);
 
         instanceStats.push({ instance: client.name, missing: missingCount, cutoff: cutoffCount });
         totalTriggered += missingCount + cutoffCount;
@@ -168,6 +176,7 @@ export class Orchestrator {
             instance: client.name,
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
+            cycleId,
           },
           'Error during indexer triggers, continuing to next instance'
         );
