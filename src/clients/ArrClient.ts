@@ -92,7 +92,20 @@ const BASE_SORT_FIELDS: Record<string, string> = {
   release_date: 'releaseDate',
   alphabetical: 'title',
 };
+/**
+ * Format a sample of titles for logging (first maxTitles items)
+ */
+function formatTitleSample(items: MediaItem[], maxTitles = 5): string {
+  const titles = items
+    .slice(0, maxTitles)
+    .map((item) => item.title ?? `ID:${item.id}`)
+    .join(', ');
 
+  if (items.length > maxTitles) {
+    return `${titles} ... and ${items.length - maxTitles} more`;
+  }
+  return titles;
+}
 export class ArrClient {
   readonly name: string;
   readonly weight: number;
@@ -256,8 +269,9 @@ export class ArrClient {
 
   /**
    * Fetch items and trigger indexer searches (missing or cutoff)
+   * Returns the number of searches triggered
    */
-  private async processBatch(batchType: 'missing' | 'cutoff', limit?: number): Promise<void> {
+  private async processBatch(batchType: 'missing' | 'cutoff', limit?: number): Promise<number> {
     const batchSizeSetting =
       batchType === 'missing' ? this.settings.missing_batch_size : this.settings.upgrade_batch_size;
     const batchSize = limit ?? batchSizeSetting;
@@ -265,7 +279,7 @@ export class ArrClient {
     // -1 = unlimited, 0 = disabled
     if (batchSize === 0) {
       this.logger.debug(`${batchType} triggers disabled (batch size = 0)`);
-      return;
+      return 0;
     }
 
     const params = batchSize > 0 ? { pageSize: batchSize } : undefined;
@@ -277,38 +291,50 @@ export class ArrClient {
           ? `No cutoff unmet ${this.metadata.mediaPlural} found`
           : `No missing ${this.metadata.mediaPlural} found`;
       this.logger.info(message);
-      return;
+      return 0;
     }
 
     const itemsToTrigger =
       batchSize > 0 ? wantedItems.records.slice(0, batchSize) : wantedItems.records;
 
+    this.logger.info(
+      { count: itemsToTrigger.length, type: batchType },
+      `Fetched ${itemsToTrigger.length} wanted ${this.metadata.mediaPlural}`
+    );
+
+    const titleSample = formatTitleSample(itemsToTrigger, 5);
     const logMessage =
       batchType === 'cutoff'
-        ? `Triggering indexer searches for ${itemsToTrigger.length} cutoff unmet ${this.metadata.mediaPlural}`
-        : `Triggering indexer searches for ${itemsToTrigger.length} missing ${this.metadata.mediaPlural}`;
+        ? `Triggering searches for: ${titleSample}`
+        : `Triggering searches for: ${titleSample}`;
 
     this.logger.info({ count: itemsToTrigger.length, type: batchType }, logMessage);
 
+    const triggerStart = Date.now();
     await this.triggerSearchesWithStagger(itemsToTrigger);
+    const triggerDuration = Date.now() - triggerStart;
 
     this.logger.info(
-      { count: itemsToTrigger.length, type: batchType },
-      `Completed triggering ${itemsToTrigger.length} indexer searches`
+      { count: itemsToTrigger.length, type: batchType, durationMs: triggerDuration },
+      `Triggered ${itemsToTrigger.length} searches`
     );
+
+    return itemsToTrigger.length;
   }
 
   /**
    * Trigger indexer searches for missing items
+   * Returns the number of searches triggered
    */
-  async triggerMissingSearches(limit?: number): Promise<void> {
+  async triggerMissingSearches(limit?: number): Promise<number> {
     return this.processBatch('missing', limit);
   }
 
   /**
    * Trigger indexer searches for cutoff unmet items (items that haven't reached quality cutoff)
+   * Returns the number of searches triggered
    */
-  async triggerCutoffSearches(limit?: number): Promise<void> {
+  async triggerCutoffSearches(limit?: number): Promise<number> {
     return this.processBatch('cutoff', limit);
   }
 }

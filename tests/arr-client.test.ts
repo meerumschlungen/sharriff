@@ -109,14 +109,14 @@ describe('ArrClient metadata configuration', () => {
       vi.spyOn(client as any, 'fetchWantedItems').mockResolvedValue({ records: [] });
       vi.spyOn(client as any, 'triggerSearchesWithStagger').mockResolvedValue(undefined);
 
-      await expect(client.triggerMissingSearches(0)).resolves.toBeUndefined();
+      await expect(client.triggerMissingSearches(0)).resolves.toBe(0);
     });
 
     it('should execute triggerCutoffSearches without errors', async () => {
       vi.spyOn(client as any, 'fetchWantedItems').mockResolvedValue({ records: [] });
       vi.spyOn(client as any, 'triggerSearchesWithStagger').mockResolvedValue(undefined);
 
-      await expect(client.triggerCutoffSearches(0)).resolves.toBeUndefined();
+      await expect(client.triggerCutoffSearches(0)).resolves.toBe(0);
     });
 
     it('should handle missing items with batch limit', async () => {

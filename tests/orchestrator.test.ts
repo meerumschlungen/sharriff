@@ -47,12 +47,14 @@ class MockArrClient implements Partial<ArrClient> {
     // Mock implementation
   }
 
-  async triggerMissingSearches(limit?: number): Promise<void> {
+  async triggerMissingSearches(limit?: number): Promise<number> {
     this.triggerMissingSearchesCalls.push(limit ?? -999);
+    return 0;
   }
 
-  async triggerCutoffSearches(limit?: number): Promise<void> {
+  async triggerCutoffSearches(limit?: number): Promise<number> {
     this.triggerCutoffSearchesCalls.push(limit ?? -999);
+    return 0;
   }
 }
 

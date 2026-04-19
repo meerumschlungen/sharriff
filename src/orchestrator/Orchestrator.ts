@@ -8,6 +8,7 @@ import { logger } from '../logger.js';
 import { interruptibleSleep } from '../utils/shutdown.js';
 import { EventEmitter } from 'events';
 import { Mutex } from '../utils/mutex.js';
+import { randomUUID } from 'crypto';
 
 const GRACEFUL_SHUTDOWN_TIMEOUT = 30000; // 30 seconds - max wait for in-flight operations
 
@@ -92,7 +93,12 @@ export class Orchestrator {
    * Run a single search cycle across all clients
    */
   private async runCycle(): Promise<void> {
-    logger.info('Starting indexer trigger cycle');
+    const cycleId = randomUUID();
+    const cycleStart = Date.now();
+    let totalTriggered = 0;
+    const instanceStats: { instance: string; missing: number; cutoff: number }[] = [];
+
+    logger.info({ cycleId }, 'Starting indexer trigger cycle');
 
     const totalWeight = this.clients.reduce((sum, client) => sum + client.weight, 0);
 
@@ -132,7 +138,7 @@ export class Orchestrator {
           'Processing instance'
         );
 
-        await client.triggerMissingSearches(clientBatchSize);
+        const missingCount = await client.triggerMissingSearches(clientBatchSize);
 
         // Also trigger searches for cutoff unmet items
         if (cutoffBatchSize === 0) {
@@ -152,7 +158,10 @@ export class Orchestrator {
           },
           'Processing cutoff unmet items'
         );
-        await client.triggerCutoffSearches(cutoffBatchSize);
+        const cutoffCount = await client.triggerCutoffSearches(cutoffBatchSize);
+
+        instanceStats.push({ instance: client.name, missing: missingCount, cutoff: cutoffCount });
+        totalTriggered += missingCount + cutoffCount;
       } catch (error) {
         logger.error(
           {
@@ -164,6 +173,17 @@ export class Orchestrator {
         );
       }
     }
+
+    const cycleDuration = Date.now() - cycleStart;
+    logger.info(
+      {
+        cycleId,
+        totalTriggered,
+        durationMs: cycleDuration,
+        instances: instanceStats,
+      },
+      'Cycle complete'
+    );
   }
 
   /**
