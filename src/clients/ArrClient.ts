@@ -198,10 +198,11 @@ export class ArrClient {
    */
   async sendCommand(
     commandName: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    cycleId?: string
   ): Promise<CommandResponse> {
     if (this.settings.dry_run) {
-      this.logger.info({ command: commandName, params }, 'DRY RUN - Would send command');
+      this.logger.info({ command: commandName, params, cycleId }, 'DRY RUN - Would send command');
       return { id: -1, name: commandName, state: 'dry-run' };
     }
 
@@ -228,12 +229,16 @@ export class ArrClient {
   /**
    * Trigger indexer search for a single item (mutex-protected atomic operation)
    */
-  protected async triggerItemSearch(item: MediaItem): Promise<void> {
+  protected async triggerItemSearch(item: MediaItem, cycleId?: string): Promise<void> {
     const release = await this.workMutex?.acquire();
     try {
-      await this.sendCommand(this.metadata.commandName, {
-        [this.metadata.idField]: [item.id],
-      });
+      await this.sendCommand(
+        this.metadata.commandName,
+        {
+          [this.metadata.idField]: [item.id],
+        },
+        cycleId
+      );
     } finally {
       release?.();
     }
@@ -242,7 +247,7 @@ export class ArrClient {
   /**
    * Trigger indexer searches with stagger delays between items
    */
-  protected async triggerSearchesWithStagger(items: MediaItem[]): Promise<void> {
+  protected async triggerSearchesWithStagger(items: MediaItem[], cycleId?: string): Promise<void> {
     const staggerSeconds = this.settings.stagger_interval_seconds;
 
     for (let i = 0; i < items.length; i++) {
@@ -254,11 +259,12 @@ export class ArrClient {
           progress: `${i + 1}/${items.length}`,
           itemId: item.id,
           title: item.title,
+          cycleId,
         },
         'Triggering indexer search for item'
       );
 
-      await this.triggerItemSearch(item);
+      await this.triggerItemSearch(item, cycleId);
 
       // Interruptible stagger delay
       if (staggerSeconds > 0 && i < items.length - 1 && this.shutdownEmitter) {
@@ -315,7 +321,7 @@ export class ArrClient {
     this.logger.info({ count: itemsToTrigger.length, type: batchType, cycleId }, logMessage);
 
     const triggerStart = Date.now();
-    await this.triggerSearchesWithStagger(itemsToTrigger);
+    await this.triggerSearchesWithStagger(itemsToTrigger, cycleId);
     const triggerDuration = Date.now() - triggerStart;
 
     this.logger.info(

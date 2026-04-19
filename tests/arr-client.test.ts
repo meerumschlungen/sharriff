@@ -130,7 +130,7 @@ describe('ArrClient metadata configuration', () => {
       await client.triggerMissingSearches(2);
 
       expect((client as any).fetchWantedItems).toHaveBeenCalledWith('missing', { pageSize: 2 });
-      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords);
+      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords, undefined);
     });
 
     it('should handle cutoff items with batch limit', async () => {
@@ -141,7 +141,7 @@ describe('ArrClient metadata configuration', () => {
       await client.triggerCutoffSearches(1);
 
       expect((client as any).fetchWantedItems).toHaveBeenCalledWith('cutoff', { pageSize: 1 });
-      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords);
+      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords, undefined);
     });
 
     it('should handle no missing items found', async () => {
@@ -184,7 +184,7 @@ describe('ArrClient metadata configuration', () => {
       await client.triggerMissingSearches(-1);
 
       expect((client as any).fetchWantedItems).toHaveBeenCalledWith('missing', undefined);
-      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords);
+      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords, undefined);
     });
   });
 });
@@ -753,9 +753,9 @@ describe('ArrClient integration methods', () => {
       expect(mockTriggerItemSearch).toHaveBeenCalledTimes(3);
 
       // Verify it was called with the correct items
-      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(1, items[0]);
-      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(2, items[1]);
-      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(3, items[2]);
+      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(1, items[0], undefined);
+      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(2, items[1], undefined);
+      expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(3, items[2], undefined);
 
       vi.useRealTimers();
     });
