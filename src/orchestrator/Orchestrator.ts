@@ -145,28 +145,28 @@ export class Orchestrator {
         const missingCount = await client.triggerMissingSearches(clientBatchSize, cycleId);
 
         // Also trigger searches for cutoff unmet items
+        let cutoffCount = 0;
         if (cutoffBatchSize === 0) {
           logger.debug(
             { instance: client.name, cycleId },
             'Cutoff triggers disabled (batch size = 0)'
           );
-          continue;
+        } else {
+          logger.info(
+            {
+              instance: client.name,
+              cutoffBatch:
+                cutoffBatchSize === 0
+                  ? 'Disabled'
+                  : cutoffBatchSize === -1
+                    ? 'Unlimited'
+                    : cutoffBatchSize,
+              cycleId,
+            },
+            'Processing cutoff unmet items'
+          );
+          cutoffCount = await client.triggerCutoffSearches(cutoffBatchSize, cycleId);
         }
-
-        logger.info(
-          {
-            instance: client.name,
-            cutoffBatch:
-              cutoffBatchSize === 0
-                ? 'Disabled'
-                : cutoffBatchSize === -1
-                  ? 'Unlimited'
-                  : cutoffBatchSize,
-            cycleId,
-          },
-          'Processing cutoff unmet items'
-        );
-        const cutoffCount = await client.triggerCutoffSearches(cutoffBatchSize, cycleId);
 
         instanceStats.push({ instance: client.name, missing: missingCount, cutoff: cutoffCount });
         totalTriggered += missingCount + cutoffCount;

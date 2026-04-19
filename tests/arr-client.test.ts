@@ -130,7 +130,10 @@ describe('ArrClient metadata configuration', () => {
       await client.triggerMissingSearches(2);
 
       expect((client as any).fetchWantedItems).toHaveBeenCalledWith('missing', { pageSize: 2 });
-      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords, undefined);
+      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(
+        mockRecords,
+        undefined
+      );
     });
 
     it('should handle cutoff items with batch limit', async () => {
@@ -141,7 +144,10 @@ describe('ArrClient metadata configuration', () => {
       await client.triggerCutoffSearches(1);
 
       expect((client as any).fetchWantedItems).toHaveBeenCalledWith('cutoff', { pageSize: 1 });
-      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords, undefined);
+      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(
+        mockRecords,
+        undefined
+      );
     });
 
     it('should handle no missing items found', async () => {
@@ -184,7 +190,10 @@ describe('ArrClient metadata configuration', () => {
       await client.triggerMissingSearches(-1);
 
       expect((client as any).fetchWantedItems).toHaveBeenCalledWith('missing', undefined);
-      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(mockRecords, undefined);
+      expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(
+        mockRecords,
+        undefined
+      );
     });
   });
 });
