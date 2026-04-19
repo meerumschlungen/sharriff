@@ -92,7 +92,20 @@ const BASE_SORT_FIELDS: Record<string, string> = {
   release_date: 'releaseDate',
   alphabetical: 'title',
 };
+/**
+ * Format a sample of titles for logging (first maxTitles items)
+ */
+function formatTitleSample(items: MediaItem[], maxTitles = 5): string {
+  const titles = items
+    .slice(0, maxTitles)
+    .map((item) => item.title ?? `ID:${item.id}`)
+    .join(', ');
 
+  if (items.length > maxTitles) {
+    return `${titles} ... and ${items.length - maxTitles} more`;
+  }
+  return titles;
+}
 export class ArrClient {
   readonly name: string;
   readonly weight: number;
@@ -185,10 +198,11 @@ export class ArrClient {
    */
   async sendCommand(
     commandName: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
+    cycleId?: string
   ): Promise<CommandResponse> {
     if (this.settings.dry_run) {
-      this.logger.info({ command: commandName, params }, 'DRY RUN - Would send command');
+      this.logger.info({ command: commandName, params, cycleId }, 'DRY RUN - Would send command');
       return { id: -1, name: commandName, state: 'dry-run' };
     }
 
@@ -215,12 +229,16 @@ export class ArrClient {
   /**
    * Trigger indexer search for a single item (mutex-protected atomic operation)
    */
-  protected async triggerItemSearch(item: MediaItem): Promise<void> {
+  protected async triggerItemSearch(item: MediaItem, cycleId?: string): Promise<void> {
     const release = await this.workMutex?.acquire();
     try {
-      await this.sendCommand(this.metadata.commandName, {
-        [this.metadata.idField]: [item.id],
-      });
+      await this.sendCommand(
+        this.metadata.commandName,
+        {
+          [this.metadata.idField]: [item.id],
+        },
+        cycleId
+      );
     } finally {
       release?.();
     }
@@ -229,7 +247,7 @@ export class ArrClient {
   /**
    * Trigger indexer searches with stagger delays between items
    */
-  protected async triggerSearchesWithStagger(items: MediaItem[]): Promise<void> {
+  protected async triggerSearchesWithStagger(items: MediaItem[], cycleId?: string): Promise<void> {
     const staggerSeconds = this.settings.stagger_interval_seconds;
 
     for (let i = 0; i < items.length; i++) {
@@ -241,11 +259,12 @@ export class ArrClient {
           progress: `${i + 1}/${items.length}`,
           itemId: item.id,
           title: item.title,
+          cycleId,
         },
         'Triggering indexer search for item'
       );
 
-      await this.triggerItemSearch(item);
+      await this.triggerItemSearch(item, cycleId);
 
       // Interruptible stagger delay
       if (staggerSeconds > 0 && i < items.length - 1 && this.shutdownEmitter) {
@@ -256,16 +275,21 @@ export class ArrClient {
 
   /**
    * Fetch items and trigger indexer searches (missing or cutoff)
+   * Returns the number of searches triggered
    */
-  private async processBatch(batchType: 'missing' | 'cutoff', limit?: number): Promise<void> {
+  private async processBatch(
+    batchType: 'missing' | 'cutoff',
+    limit?: number,
+    cycleId?: string
+  ): Promise<number> {
     const batchSizeSetting =
       batchType === 'missing' ? this.settings.missing_batch_size : this.settings.upgrade_batch_size;
     const batchSize = limit ?? batchSizeSetting;
 
     // -1 = unlimited, 0 = disabled
     if (batchSize === 0) {
-      this.logger.debug(`${batchType} triggers disabled (batch size = 0)`);
-      return;
+      this.logger.debug({ cycleId }, `${batchType} triggers disabled (batch size = 0)`);
+      return 0;
     }
 
     const params = batchSize > 0 ? { pageSize: batchSize } : undefined;
@@ -276,39 +300,51 @@ export class ArrClient {
         batchType === 'cutoff'
           ? `No cutoff unmet ${this.metadata.mediaPlural} found`
           : `No missing ${this.metadata.mediaPlural} found`;
-      this.logger.info(message);
-      return;
+      this.logger.info({ cycleId }, message);
+      return 0;
     }
 
     const itemsToTrigger =
       batchSize > 0 ? wantedItems.records.slice(0, batchSize) : wantedItems.records;
 
+    this.logger.info(
+      { count: itemsToTrigger.length, type: batchType, cycleId },
+      `Fetched ${itemsToTrigger.length} wanted ${this.metadata.mediaPlural}`
+    );
+
+    const titleSample = formatTitleSample(itemsToTrigger, 5);
     const logMessage =
       batchType === 'cutoff'
-        ? `Triggering indexer searches for ${itemsToTrigger.length} cutoff unmet ${this.metadata.mediaPlural}`
-        : `Triggering indexer searches for ${itemsToTrigger.length} missing ${this.metadata.mediaPlural}`;
+        ? `Triggering searches for: ${titleSample}`
+        : `Triggering searches for: ${titleSample}`;
 
-    this.logger.info({ count: itemsToTrigger.length, type: batchType }, logMessage);
+    this.logger.info({ count: itemsToTrigger.length, type: batchType, cycleId }, logMessage);
 
-    await this.triggerSearchesWithStagger(itemsToTrigger);
+    const triggerStart = Date.now();
+    await this.triggerSearchesWithStagger(itemsToTrigger, cycleId);
+    const triggerDuration = Date.now() - triggerStart;
 
     this.logger.info(
-      { count: itemsToTrigger.length, type: batchType },
-      `Completed triggering ${itemsToTrigger.length} indexer searches`
+      { count: itemsToTrigger.length, type: batchType, durationMs: triggerDuration, cycleId },
+      `Triggered ${itemsToTrigger.length} searches`
     );
+
+    return itemsToTrigger.length;
   }
 
   /**
    * Trigger indexer searches for missing items
+   * Returns the number of searches triggered
    */
-  async triggerMissingSearches(limit?: number): Promise<void> {
-    return this.processBatch('missing', limit);
+  async triggerMissingSearches(limit?: number, cycleId?: string): Promise<number> {
+    return this.processBatch('missing', limit, cycleId);
   }
 
   /**
    * Trigger indexer searches for cutoff unmet items (items that haven't reached quality cutoff)
+   * Returns the number of searches triggered
    */
-  async triggerCutoffSearches(limit?: number): Promise<void> {
-    return this.processBatch('cutoff', limit);
+  async triggerCutoffSearches(limit?: number, cycleId?: string): Promise<number> {
+    return this.processBatch('cutoff', limit, cycleId);
   }
 }
