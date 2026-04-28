@@ -129,7 +129,11 @@ describe('ArrClient metadata configuration', () => {
 
       await client.triggerMissingSearches(2);
 
-      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('missing', { pageSize: 2 });
+      // Now uses paged fetching with page=1, pageSize=100
+      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('missing', {
+        page: 1,
+        pageSize: 100,
+      });
       expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(
         mockRecords,
         undefined
@@ -143,7 +147,11 @@ describe('ArrClient metadata configuration', () => {
 
       await client.triggerCutoffSearches(1);
 
-      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('cutoff', { pageSize: 1 });
+      // Now uses paged fetching with page=1, pageSize=100
+      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('cutoff', {
+        page: 1,
+        pageSize: 100,
+      });
       expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(
         mockRecords,
         undefined
@@ -175,8 +183,11 @@ describe('ArrClient metadata configuration', () => {
 
       await client.triggerCutoffSearches();
 
-      // Default upgrade_batch_size is 10 from createSettings
-      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('cutoff', { pageSize: 10 });
+      // Now uses paged fetching with page=1, pageSize=100
+      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('cutoff', {
+        page: 1,
+        pageSize: 100,
+      });
     });
 
     it('should handle unlimited batch size (-1)', async () => {
@@ -189,7 +200,11 @@ describe('ArrClient metadata configuration', () => {
 
       await client.triggerMissingSearches(-1);
 
-      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('missing', undefined);
+      // Now uses paged fetching with page=1, pageSize=100
+      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('missing', {
+        page: 1,
+        pageSize: 100,
+      });
       expect((client as any).triggerSearchesWithStagger).toHaveBeenCalledWith(
         mockRecords,
         undefined
@@ -767,6 +782,436 @@ describe('ArrClient integration methods', () => {
       expect(mockTriggerItemSearch).toHaveBeenNthCalledWith(3, items[2], undefined);
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('retry_interval_days filtering', () => {
+    const FIXED_NOW = new Date('2024-01-15T12:00:00.000Z');
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(FIXED_NOW);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Helper to create timestamps relative to now using fixed millisecond offsets
+    function daysAgo(days: number): string {
+      return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    function hoursAgo(hours: number): string {
+      return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    }
+
+    describe('shouldIncludeItem filtering logic', () => {
+      it('should include items never searched (no lastSearchTime)', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1' };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(true);
+      });
+
+      it('should include items with undefined lastSearchTime', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: undefined };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(true);
+      });
+
+      it('should include items with null lastSearchTime', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: null };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(true);
+      });
+
+      it('should include items searched before retry interval', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: daysAgo(10) };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(true);
+      });
+
+      it('should exclude items searched within retry interval', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: daysAgo(3) };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(false);
+      });
+
+      it('should exclude items searched very recently', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: hoursAgo(1) };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(false);
+      });
+
+      it('should exclude items at exactly the retry interval boundary', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: daysAgo(7) };
+        // At exactly 7 days, should be excluded (still within interval)
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(false);
+      });
+
+      it('should include items just beyond the retry interval', () => {
+        // 7 days + 1 hour should be included
+        const date = new Date();
+        date.setDate(date.getDate() - 7);
+        date.setHours(date.getHours() - 1);
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: date.toISOString() };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(true);
+      });
+
+      it('should include items with invalid lastSearchTime (fail open)', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: 'invalid-date' };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(true);
+      });
+
+      it('should include items with malformed date string', () => {
+        const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: '2026-99-99' };
+        expect((client as any).shouldIncludeItem(item, 7)).toBe(true);
+      });
+
+      it('should include all items when retry_interval_days = 0', () => {
+        const recentItem: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: hoursAgo(1) };
+        const oldItem: MediaItem = { id: 2, title: 'Movie 2', lastSearchTime: daysAgo(100) };
+        const neverSearched: MediaItem = { id: 3, title: 'Movie 3' };
+
+        expect((client as any).shouldIncludeItem(recentItem, 0)).toBe(true);
+        expect((client as any).shouldIncludeItem(oldItem, 0)).toBe(true);
+        expect((client as any).shouldIncludeItem(neverSearched, 0)).toBe(true);
+      });
+
+      it('should handle different retry interval values', () => {
+        const item30Days: MediaItem = { id: 1, lastSearchTime: daysAgo(35) };
+        const item7Days: MediaItem = { id: 2, lastSearchTime: daysAgo(10) };
+        const item1Day: MediaItem = { id: 3, lastSearchTime: hoursAgo(12) };
+
+        // 30 days interval
+        expect((client as any).shouldIncludeItem(item30Days, 30)).toBe(true);
+        expect((client as any).shouldIncludeItem(item7Days, 30)).toBe(false);
+
+        // 7 days interval
+        expect((client as any).shouldIncludeItem(item7Days, 7)).toBe(true);
+        expect((client as any).shouldIncludeItem(item1Day, 7)).toBe(false);
+
+        // 1 day interval
+        expect((client as any).shouldIncludeItem(item1Day, 1)).toBe(false);
+        expect((client as any).shouldIncludeItem(item7Days, 1)).toBe(true);
+      });
+    });
+
+    describe('fetchWantedItemsWithFiltering pagination', () => {
+      beforeEach(() => {
+        mockHttpGet.mockReset();
+      });
+
+      it('should fetch single page when enough items found', async () => {
+        const items = Array.from({ length: 100 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          lastSearchTime: daysAgo(10), // All eligible
+        }));
+
+        mockHttpGet.mockResolvedValueOnce({ records: items, pageSize: 100 });
+
+        const result = await (client as any).fetchWantedItemsWithFiltering(
+          'missing',
+          50,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(50);
+        expect(mockHttpGet).toHaveBeenCalledTimes(1);
+        expect(mockHttpGet).toHaveBeenCalledWith(
+          '/api/v3/wanted/missing',
+          expect.objectContaining({
+            page: 1,
+            pageSize: 100,
+          })
+        );
+      });
+
+      it('should fetch multiple pages until batch size reached', async () => {
+        // Create client with retry_interval_days > 0 to enable filtering
+        const settings = createSettings('last_searched_ascending');
+        settings.retry_interval_days = 7;
+        const filterClient = new ArrClient('radarr', 'test', 'http://localhost', 'key', settings);
+        (filterClient as any).http = { get: mockHttpGet };
+
+        // Page 1: 100 items, all recent (filtered out)
+        const page1Items = Array.from({ length: 100 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          lastSearchTime: daysAgo(2), // Too recent
+        }));
+
+        // Page 2: 50 items, first 20 eligible
+        const page2Items = Array.from({ length: 50 }, (_, i) => ({
+          id: i + 101,
+          title: `Movie ${i + 101}`,
+          lastSearchTime: i < 20 ? daysAgo(10) : daysAgo(2),
+        }));
+
+        mockHttpGet
+          .mockResolvedValueOnce({ records: page1Items, pageSize: 100 })
+          .mockResolvedValueOnce({ records: page2Items, pageSize: 50 });
+
+        const result = await (filterClient as any).fetchWantedItemsWithFiltering(
+          'missing',
+          20,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(20);
+        expect(mockHttpGet).toHaveBeenCalledTimes(2);
+        expect(mockHttpGet).toHaveBeenNthCalledWith(
+          1,
+          '/api/v3/wanted/missing',
+          expect.objectContaining({ page: 1 })
+        );
+        expect(mockHttpGet).toHaveBeenNthCalledWith(
+          2,
+          '/api/v3/wanted/missing',
+          expect.objectContaining({ page: 2 })
+        );
+      });
+
+      it('should stop early when enough filtered items found', async () => {
+        const page1Items = Array.from({ length: 100 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          lastSearchTime: daysAgo(10), // All eligible
+        }));
+
+        mockHttpGet.mockResolvedValueOnce({ records: page1Items, pageSize: 100 });
+
+        const result = await (client as any).fetchWantedItemsWithFiltering(
+          'missing',
+          50,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(50);
+        expect(mockHttpGet).toHaveBeenCalledTimes(1); // Only fetched 1 page, stopped early
+      });
+
+      it('should fetch all pages when unlimited batch size (-1)', async () => {
+        const page1Items = Array.from({ length: 100 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          lastSearchTime: daysAgo(10),
+        }));
+
+        const page2Items = Array.from({ length: 30 }, (_, i) => ({
+          id: i + 101,
+          title: `Movie ${i + 101}`,
+          lastSearchTime: daysAgo(10),
+        }));
+
+        mockHttpGet
+          .mockResolvedValueOnce({ records: page1Items, pageSize: 100 })
+          .mockResolvedValueOnce({ records: page2Items, pageSize: 30 });
+
+        const result = await (client as any).fetchWantedItemsWithFiltering(
+          'missing',
+          -1,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(130);
+        expect(mockHttpGet).toHaveBeenCalledTimes(2);
+      });
+
+      it('should return partial batch when not enough items available', async () => {
+        const items = Array.from({ length: 10 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          lastSearchTime: daysAgo(10),
+        }));
+
+        mockHttpGet.mockResolvedValueOnce({ records: items, pageSize: 10 });
+
+        const result = await (client as any).fetchWantedItemsWithFiltering(
+          'missing',
+          50,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(10); // Only 10 available, not 50
+      });
+
+      it('should bypass filtering when retry_interval_days = 0', async () => {
+        const items = Array.from({ length: 50 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          lastSearchTime: hoursAgo(1), // Very recent
+        }));
+
+        mockHttpGet.mockResolvedValueOnce({ records: items, pageSize: 50 });
+
+        const settings = createSettings('last_searched_ascending');
+        settings.retry_interval_days = 0; // Disabled
+        const noFilterClient = new ArrClient('radarr', 'test', 'http://localhost', 'key', settings);
+        (noFilterClient as any).http = { get: mockHttpGet };
+
+        const result = await (noFilterClient as any).fetchWantedItemsWithFiltering(
+          'missing',
+          50,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(50); // All included despite recent timestamps
+      });
+
+      it('should handle empty response', async () => {
+        mockHttpGet.mockResolvedValueOnce({ records: [] });
+
+        const result = await (client as any).fetchWantedItemsWithFiltering(
+          'missing',
+          20,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(0);
+        expect(mockHttpGet).toHaveBeenCalledTimes(1);
+      });
+
+      it('should handle mixed eligible and ineligible items', async () => {
+        // Create client with retry_interval_days > 0 to enable filtering
+        const settings = createSettings('last_searched_ascending');
+        settings.retry_interval_days = 7;
+        const filterClient = new ArrClient('radarr', 'test', 'http://localhost', 'key', settings);
+        (filterClient as any).http = { get: mockHttpGet };
+
+        const items = Array.from({ length: 20 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          // Every other item is eligible
+          lastSearchTime: i % 2 === 0 ? daysAgo(10) : daysAgo(2),
+        }));
+
+        mockHttpGet.mockResolvedValueOnce({ records: items, pageSize: 20 });
+
+        const result = await (filterClient as any).fetchWantedItemsWithFiltering(
+          'missing',
+          20,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(10); // Half are eligible
+      });
+
+      it('should continue fetching when first pages have no eligible items', async () => {
+        // Create client with retry_interval_days > 0 to enable filtering
+        const settings = createSettings('last_searched_ascending');
+        settings.retry_interval_days = 7;
+        const filterClient = new ArrClient('radarr', 'test', 'http://localhost', 'key', settings);
+        (filterClient as any).http = { get: mockHttpGet };
+
+        const page1Items = Array.from({ length: 100 }, (_, i) => ({
+          id: i + 1,
+          lastSearchTime: hoursAgo(1), // All recent
+        }));
+
+        const page2Items = Array.from({ length: 100 }, (_, i) => ({
+          id: i + 101,
+          lastSearchTime: hoursAgo(1), // All recent
+        }));
+
+        const page3Items = Array.from({ length: 50 }, (_, i) => ({
+          id: i + 201,
+          lastSearchTime: daysAgo(10), // All eligible
+        }));
+
+        mockHttpGet
+          .mockResolvedValueOnce({ records: page1Items, pageSize: 100 })
+          .mockResolvedValueOnce({ records: page2Items, pageSize: 100 })
+          .mockResolvedValueOnce({ records: page3Items, pageSize: 50 });
+
+        const result = await (filterClient as any).fetchWantedItemsWithFiltering(
+          'missing',
+          20,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(20);
+        expect(mockHttpGet).toHaveBeenCalledTimes(3);
+      });
+
+      it('should work with cutoff batch type', async () => {
+        const items = Array.from({ length: 30 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          lastSearchTime: daysAgo(10),
+        }));
+
+        mockHttpGet.mockResolvedValueOnce({ records: items, pageSize: 30 });
+
+        const result = await (client as any).fetchWantedItemsWithFiltering(
+          'cutoff',
+          20,
+          'test-cycle'
+        );
+
+        expect(result).toHaveLength(20);
+        expect(mockHttpGet).toHaveBeenCalledWith(
+          '/api/v3/wanted/cutoff',
+          expect.objectContaining({
+            page: 1,
+            pageSize: 100,
+          })
+        );
+      });
+    });
+
+    describe('processBatch integration with filtering', () => {
+      beforeEach(() => {
+        mockHttpGet.mockReset();
+        mockHttpPost.mockReset();
+      });
+
+      it('should use paged fetching with filtering when retry_interval_days > 0', async () => {
+        const settings = createSettings('last_searched_ascending');
+        settings.retry_interval_days = 7;
+        const filterClient = new ArrClient('radarr', 'test', 'http://localhost', 'key', settings);
+        (filterClient as any).http = { get: mockHttpGet, post: mockHttpPost };
+
+        const items = Array.from({ length: 20 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+          lastSearchTime: daysAgo(10),
+        }));
+
+        mockHttpGet.mockResolvedValue({ records: items, pageSize: 20 });
+        mockHttpPost.mockResolvedValue({ id: 123, name: 'MoviesSearch' });
+
+        await filterClient.triggerMissingSearches(20, 'test-cycle');
+
+        expect(mockHttpGet).toHaveBeenCalledWith(
+          '/api/v3/wanted/missing',
+          expect.objectContaining({
+            page: 1,
+            pageSize: 100,
+          })
+        );
+      });
+
+      it('should use paged fetching even when retry_interval_days = 0', async () => {
+        const settings = createSettings('last_searched_ascending');
+        settings.retry_interval_days = 0;
+        const noFilterClient = new ArrClient('radarr', 'test', 'http://localhost', 'key', settings);
+        (noFilterClient as any).http = { get: mockHttpGet, post: mockHttpPost };
+
+        const items = Array.from({ length: 20 }, (_, i) => ({
+          id: i + 1,
+          title: `Movie ${i + 1}`,
+        }));
+
+        mockHttpGet.mockResolvedValue({ records: items, pageSize: 20 });
+        mockHttpPost.mockResolvedValue({ id: 123, name: 'MoviesSearch' });
+
+        await noFilterClient.triggerMissingSearches(20, 'test-cycle');
+
+        // Should still use pagination API
+        expect(mockHttpGet).toHaveBeenCalledWith(
+          '/api/v3/wanted/missing',
+          expect.objectContaining({
+            page: 1,
+            pageSize: 100,
+          })
+        );
+      });
     });
   });
 });

@@ -274,6 +274,163 @@ export class ArrClient {
   }
 
   /**
+   * Check if an item should be included based on retry interval
+   *
+   * @param item - Media item to check
+   * @param retryIntervalDays - Retry interval in days
+   * @returns true if item should be included
+   */
+  private shouldIncludeItem(item: MediaItem, retryIntervalDays: number): boolean {
+    if (retryIntervalDays === 0) return true;
+
+    const lastSearchTime = item['lastSearchTime'];
+
+    // Include items never searched (null/undefined/missing)
+    if (!lastSearchTime) {
+      return true;
+    }
+
+    try {
+      const lastSearchDate = new Date(lastSearchTime as string).getTime();
+
+      // Invalid date parsing returns NaN
+      if (isNaN(lastSearchDate)) {
+        this.logger.debug(
+          { itemId: item.id, lastSearchTime },
+          'Invalid lastSearchTime format, including item'
+        );
+        return true; // Fail open
+      }
+
+      const retryThresholdMs = Date.now() - retryIntervalDays * 24 * 60 * 60 * 1000;
+
+      return lastSearchDate < retryThresholdMs;
+    } catch (error) {
+      // Date parsing error - fail open
+      this.logger.debug(
+        { itemId: item.id, lastSearchTime, error },
+        'Error parsing lastSearchTime, including item'
+      );
+      return true;
+    }
+  }
+
+  /**
+   * Fetch wanted items with optional retry interval filtering
+   * Uses pagination to avoid memory issues with large lists
+   *
+   * @param batchType - 'missing' or 'cutoff'
+   * @param targetCount - Number of items needed (-1 = unlimited)
+   * @param cycleId - Optional cycle ID for logging
+   * @returns Array of filtered items
+   */
+  private async fetchWantedItemsWithFiltering(
+    batchType: 'missing' | 'cutoff',
+    targetCount: number,
+    cycleId?: string
+  ): Promise<MediaItem[]> {
+    const PAGE_SIZE = 100;
+    const retryIntervalDays = this.settings.retry_interval_days;
+    const unlimited = targetCount === -1;
+
+    const filteredItems: MediaItem[] = [];
+    let currentPage = 1;
+    let totalFetched = 0;
+    let totalFiltered = 0;
+
+    while (true) {
+      // Fetch page
+      const response = await this.fetchWantedItems(batchType, {
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+      });
+
+      const pageItems = response.records ?? [];
+      totalFetched += pageItems.length;
+
+      this.logger.debug(
+        {
+          page: currentPage,
+          pageSize: pageItems.length,
+          totalRecords: response.totalRecords,
+          type: batchType,
+          cycleId,
+        },
+        `Fetched page ${currentPage} with ${pageItems.length} items`
+      );
+
+      // Filter items if retry interval is enabled
+      const itemsToAdd =
+        retryIntervalDays > 0
+          ? pageItems.filter((item) => this.shouldIncludeItem(item, retryIntervalDays))
+          : pageItems;
+
+      filteredItems.push(...itemsToAdd);
+      totalFiltered += pageItems.length - itemsToAdd.length;
+
+      // Check termination conditions
+      const hasMorePages = response.totalRecords
+        ? currentPage * PAGE_SIZE < response.totalRecords
+        : pageItems.length === PAGE_SIZE;
+      const hasEnoughItems = !unlimited && filteredItems.length >= targetCount;
+
+      if (!hasMorePages || hasEnoughItems) {
+        break;
+      }
+
+      currentPage++;
+    }
+
+    // Trim to exact target count if needed
+    const result =
+      unlimited || filteredItems.length <= targetCount
+        ? filteredItems
+        : filteredItems.slice(0, targetCount);
+
+    // Log summary
+    if (retryIntervalDays > 0) {
+      this.logger.info(
+        {
+          fetched: totalFetched,
+          filtered: totalFiltered,
+          retained: result.length,
+          pages: currentPage,
+          type: batchType,
+          retryIntervalDays,
+          cycleId,
+        },
+        `Paged fetch complete: ${result.length} items retained after filtering (${totalFiltered} filtered out)`
+      );
+    } else {
+      this.logger.info(
+        {
+          fetched: totalFetched,
+          retained: result.length,
+          pages: currentPage,
+          type: batchType,
+          cycleId,
+        },
+        `Paged fetch complete: ${result.length} items fetched`
+      );
+    }
+
+    // Log info if partial batch (couldn't reach target)
+    if (!unlimited && targetCount > 0 && result.length < targetCount && result.length > 0) {
+      this.logger.info(
+        {
+          requested: targetCount,
+          found: result.length,
+          type: batchType,
+          cycleId,
+        },
+        `Partial batch: Only ${result.length} of ${targetCount} requested items found after filtering`
+      );
+    }
+
+    return result;
+  }
+
+  /**
    * Fetch items and trigger indexer searches (missing or cutoff)
    * Returns the number of searches triggered
    */
@@ -292,10 +449,10 @@ export class ArrClient {
       return 0;
     }
 
-    const params = batchSize > 0 ? { pageSize: batchSize } : undefined;
-    const wantedItems = await this.fetchWantedItems(batchType, params);
+    // Fetch items with pagination and optional retry interval filtering
+    const itemsToTrigger = await this.fetchWantedItemsWithFiltering(batchType, batchSize, cycleId);
 
-    if (!wantedItems.records || wantedItems.records.length === 0) {
+    if (itemsToTrigger.length === 0) {
       const message =
         batchType === 'cutoff'
           ? `No cutoff unmet ${this.metadata.mediaPlural} found`
@@ -304,19 +461,11 @@ export class ArrClient {
       return 0;
     }
 
-    const itemsToTrigger =
-      batchSize > 0 ? wantedItems.records.slice(0, batchSize) : wantedItems.records;
-
-    this.logger.info(
-      { count: itemsToTrigger.length, type: batchType, cycleId },
-      `Fetched ${itemsToTrigger.length} wanted ${this.metadata.mediaPlural}`
-    );
-
     const titleSample = formatTitleSample(itemsToTrigger, 5);
     const logMessage =
       batchType === 'cutoff'
-        ? `Triggering searches for: ${titleSample}`
-        : `Triggering searches for: ${titleSample}`;
+        ? `Triggering searches for cutoff unmet: ${titleSample}`
+        : `Triggering searches for missing: ${titleSample}`;
 
     this.logger.info({ count: itemsToTrigger.length, type: batchType, cycleId }, logMessage);
 
