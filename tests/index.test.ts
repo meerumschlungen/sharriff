@@ -70,39 +70,6 @@ describe('Main Application', () => {
   });
 
   describe('warnings', () => {
-    it('should warn when retry_interval_days is configured', async () => {
-      const config: Config = {
-        global: {
-          interval: 3600,
-          missing_batch_size: 20,
-          upgrade_batch_size: 10,
-          stagger_interval_seconds: 30,
-          search_order: 'last_searched_ascending',
-          retry_interval_days: 7,
-          dry_run: false,
-        },
-        instances: {
-          radarr: {
-            type: 'radarr',
-            host: 'http://radarr:7878',
-            api_key: 'test-key',
-            enabled: true,
-            weight: 1.0,
-          },
-        },
-      };
-
-      mockLoadConfig.mockReturnValue(config);
-
-      const { main } = await import('../src/index.js');
-      await main();
-
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        { retry_interval_days: 7 },
-        expect.stringContaining('retry_interval_days is configured but not yet implemented')
-      );
-    });
-
     it('should warn when random search order is configured', async () => {
       const config: Config = {
         global: {
@@ -133,39 +100,6 @@ describe('Main Application', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ search_order: 'random' }),
         expect.stringContaining('random search order is configured but not yet fully implemented')
-      );
-    });
-
-    it('should not warn when retry_interval_days is 0', async () => {
-      const config: Config = {
-        global: {
-          interval: 3600,
-          missing_batch_size: 20,
-          upgrade_batch_size: 10,
-          stagger_interval_seconds: 30,
-          search_order: 'last_searched_ascending',
-          retry_interval_days: 0,
-          dry_run: false,
-        },
-        instances: {
-          radarr: {
-            type: 'radarr',
-            host: 'http://radarr:7878',
-            api_key: 'test-key',
-            enabled: true,
-            weight: 1.0,
-          },
-        },
-      };
-
-      mockLoadConfig.mockReturnValue(config);
-
-      const { main } = await import('../src/index.js');
-      await main();
-
-      expect(mockLogger.warn).not.toHaveBeenCalledWith(
-        expect.objectContaining({ retry_interval_days: expect.any(Number) }),
-        expect.stringContaining('retry_interval_days')
       );
     });
   });

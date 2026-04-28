@@ -46,14 +46,6 @@ export async function main() {
       'Configuration loaded'
     );
 
-    // Warn if retry_interval_days is configured but not implemented
-    if (config.global.retry_interval_days > 0) {
-      logger.warn(
-        { retry_interval_days: config.global.retry_interval_days },
-        'retry_interval_days is configured but not yet implemented - parameter will be ignored. See TODO.md for implementation requirements.'
-      );
-    }
-
     // Warn if random search order is configured (requires client-side filtering)
     if (config.global.search_order === 'random') {
       logger.warn(
