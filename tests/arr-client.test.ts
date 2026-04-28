@@ -786,17 +786,24 @@ describe('ArrClient integration methods', () => {
   });
 
   describe('retry_interval_days filtering', () => {
-    // Helper to create timestamps relative to now
+    const FIXED_NOW = new Date('2024-01-15T12:00:00.000Z');
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(FIXED_NOW);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Helper to create timestamps relative to now using fixed millisecond offsets
     function daysAgo(days: number): string {
-      const date = new Date();
-      date.setDate(date.getDate() - days);
-      return date.toISOString();
+      return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
     }
 
     function hoursAgo(hours: number): string {
-      const date = new Date();
-      date.setHours(date.getHours() - hours);
-      return date.toISOString();
+      return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
     }
 
     describe('shouldIncludeItem filtering logic', () => {
@@ -830,7 +837,7 @@ describe('ArrClient integration methods', () => {
         expect((client as any).shouldIncludeItem(item, 7)).toBe(false);
       });
 
-      it('should include items at exactly the retry interval boundary', () => {
+      it('should exclude items at exactly the retry interval boundary', () => {
         const item: MediaItem = { id: 1, title: 'Movie 1', lastSearchTime: daysAgo(7) };
         // At exactly 7 days, should be excluded (still within interval)
         expect((client as any).shouldIncludeItem(item, 7)).toBe(false);

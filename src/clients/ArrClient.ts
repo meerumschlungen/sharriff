@@ -369,7 +369,9 @@ export class ArrClient {
       totalFiltered += pageItems.length - itemsToAdd.length;
 
       // Check termination conditions
-      const hasMorePages = pageItems.length === PAGE_SIZE;
+      const hasMorePages = response.totalRecords
+        ? currentPage * PAGE_SIZE < response.totalRecords
+        : pageItems.length === PAGE_SIZE;
       const hasEnoughItems = !unlimited && filteredItems.length >= targetCount;
 
       if (!hasMorePages || hasEnoughItems) {
@@ -412,7 +414,7 @@ export class ArrClient {
       );
     }
 
-    // Warn if partial batch (couldn't reach target)
+    // Log info if partial batch (couldn't reach target)
     if (!unlimited && targetCount > 0 && result.length < targetCount && result.length > 0) {
       this.logger.info(
         {
