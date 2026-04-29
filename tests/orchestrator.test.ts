@@ -238,6 +238,62 @@ describe('Orchestrator', () => {
       expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
     });
 
+    it('should trigger cutoff searches even when missing batch size is 0', async () => {
+      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 0, // disabled
+        upgrade_batch_size: 10, // enabled
+      };
+
+      const orchestrator = new Orchestrator([client1], settings, {
+        oneShot: true,
+        registerSignalHandlers: false,
+      });
+
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+      await orchestrator.start();
+
+      exitSpy.mockRestore();
+
+      // Missing should not be called (disabled)
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(0);
+
+      // Cutoff should still be called (enabled)
+      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(1);
+      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
+    });
+
+    it('should trigger missing searches even when cutoff batch size is 0', async () => {
+      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 20, // enabled
+        upgrade_batch_size: 0, // disabled
+      };
+
+      const orchestrator = new Orchestrator([client1], settings, {
+        oneShot: true,
+        registerSignalHandlers: false,
+      });
+
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+      await orchestrator.start();
+
+      exitSpy.mockRestore();
+
+      // Missing should be called (enabled)
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(20);
+
+      // Cutoff should not be called (disabled)
+      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(0);
+    });
+
     it('should handle fractional weight distribution with rounding', async () => {
       const client1 = new MockArrClient('radarr', 1.5) as unknown as ArrClient;
       const client2 = new MockArrClient('sonarr', 1.5) as unknown as ArrClient;
