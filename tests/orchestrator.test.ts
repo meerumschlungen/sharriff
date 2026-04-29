@@ -25,8 +25,8 @@ vi.mock('../src/logger.js', () => ({
 
 // Mock ArrClient
 class MockArrClient implements Partial<ArrClient> {
-  private name: string;
-  private weight: number;
+  readonly name: string;
+  readonly weight: number;
   public triggerMissingSearchesCalls: number[] = [];
   public triggerCutoffSearchesCalls: number[] = [];
 
