@@ -319,6 +319,35 @@ describe('Orchestrator', () => {
       expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
       expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
     });
+
+    it('should handle zero total weight by giving minimum batch size to all clients', async () => {
+      const client1 = new MockArrClient('radarr', 0) as unknown as ArrClient;
+      const client2 = new MockArrClient('sonarr', 0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 10,
+        upgrade_batch_size: 0,
+      };
+
+      const orchestrator = new Orchestrator([client1, client2], settings, {
+        oneShot: true,
+        registerSignalHandlers: false,
+      });
+
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+      await orchestrator.start();
+
+      exitSpy.mockRestore();
+
+      // With 0 weight share (0 * 10 = 0), Math.max(1, 0) still gives batch size 1
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
+
+      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
+    });
   });
 
   describe('daemon mode', () => {
@@ -483,6 +512,60 @@ describe('Orchestrator', () => {
 
       // Clients should be skipped due to shutdown
       // This verifies the shutdown check works
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should remove signal handlers when dispose is called', () => {
+      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 10,
+        upgrade_batch_size: 0,
+      };
+
+      // Create with signal handlers enabled
+      const orchestrator = new Orchestrator([client1], settings, {
+        oneShot: true,
+        registerSignalHandlers: true,
+      });
+
+      const offSpy = vi.spyOn(process, 'off');
+
+      orchestrator.dispose();
+
+      // Should remove both signal handlers
+      expect(offSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+      expect(offSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
+
+      offSpy.mockRestore();
+    });
+
+    it('should handle dispose when signal handlers were not registered', () => {
+      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 10,
+        upgrade_batch_size: 0,
+      };
+
+      // Create without signal handlers
+      const orchestrator = new Orchestrator([client1], settings, {
+        oneShot: true,
+        registerSignalHandlers: false,
+      });
+
+      const offSpy = vi.spyOn(process, 'off');
+
+      // Should not throw
+      expect(() => orchestrator.dispose()).not.toThrow();
+
+      // Should not call process.off since handlers were never registered
+      expect(offSpy).not.toHaveBeenCalled();
+
+      offSpy.mockRestore();
     });
   });
 });
