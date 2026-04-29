@@ -110,7 +110,7 @@ export class Orchestrator {
 
       try {
         const weightShare = totalWeight > 0 ? client.weight / totalWeight : 0;
-        const clientBatchSize = this.calculateBatchSize(
+        const missingBatchSize = this.calculateBatchSize(
           this.settings.missing_batch_size,
           weightShare
         );
@@ -119,10 +119,11 @@ export class Orchestrator {
           weightShare
         );
 
-        if (clientBatchSize === 0) {
+        // Skip if both batch sizes are disabled
+        if (missingBatchSize === 0 && cutoffBatchSize === 0) {
           logger.debug(
             { instance: client.name, cycleId },
-            'Missing triggers disabled (batch size = 0)'
+            'Instance disabled (both missing and cutoff batch sizes = 0)'
           );
           continue;
         }
@@ -132,17 +133,25 @@ export class Orchestrator {
             instance: client.name,
             weight: client.weight,
             missingBatch:
-              clientBatchSize === 0
+              missingBatchSize === 0
                 ? 'Disabled'
-                : clientBatchSize === -1
+                : missingBatchSize === -1
                   ? 'Unlimited'
-                  : clientBatchSize,
+                  : missingBatchSize,
             cycleId,
           },
           'Processing instance'
         );
 
-        const missingCount = await client.triggerMissingSearches(clientBatchSize, cycleId);
+        let missingCount = 0;
+        if (missingBatchSize === 0) {
+          logger.debug(
+            { instance: client.name, cycleId },
+            'Missing triggers disabled (batch size = 0)'
+          );
+        } else {
+          missingCount = await client.triggerMissingSearches(missingBatchSize, cycleId);
+        }
 
         // Also trigger searches for cutoff unmet items
         let cutoffCount = 0;

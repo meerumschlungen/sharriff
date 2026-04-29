@@ -47,13 +47,13 @@ class MockArrClient implements Partial<ArrClient> {
     // Mock implementation
   }
 
-  async triggerMissingSearches(limit?: number): Promise<number> {
-    this.triggerMissingSearchesCalls.push(limit ?? -999);
+  async triggerMissingSearches(limit: number): Promise<number> {
+    this.triggerMissingSearchesCalls.push(limit);
     return 0;
   }
 
-  async triggerCutoffSearches(limit?: number): Promise<number> {
-    this.triggerCutoffSearchesCalls.push(limit ?? -999);
+  async triggerCutoffSearches(limit: number): Promise<number> {
+    this.triggerCutoffSearchesCalls.push(limit);
     return 0;
   }
 }
@@ -238,6 +238,62 @@ describe('Orchestrator', () => {
       expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
     });
 
+    it('should trigger cutoff searches even when missing batch size is 0', async () => {
+      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 0, // disabled
+        upgrade_batch_size: 10, // enabled
+      };
+
+      const orchestrator = new Orchestrator([client1], settings, {
+        oneShot: true,
+        registerSignalHandlers: false,
+      });
+
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+      await orchestrator.start();
+
+      exitSpy.mockRestore();
+
+      // Missing should not be called (disabled)
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(0);
+
+      // Cutoff should still be called (enabled)
+      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(1);
+      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
+    });
+
+    it('should trigger missing searches even when cutoff batch size is 0', async () => {
+      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 20, // enabled
+        upgrade_batch_size: 0, // disabled
+      };
+
+      const orchestrator = new Orchestrator([client1], settings, {
+        oneShot: true,
+        registerSignalHandlers: false,
+      });
+
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+      await orchestrator.start();
+
+      exitSpy.mockRestore();
+
+      // Missing should be called (enabled)
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(20);
+
+      // Cutoff should not be called (disabled)
+      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(0);
+    });
+
     it('should handle fractional weight distribution with rounding', async () => {
       const client1 = new MockArrClient('radarr', 1.5) as unknown as ArrClient;
       const client2 = new MockArrClient('sonarr', 1.5) as unknown as ArrClient;
@@ -262,6 +318,35 @@ describe('Orchestrator', () => {
       // Each should get 5 items (0.5 share of 10)
       expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
       expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
+    });
+
+    it('should handle zero total weight by giving minimum batch size to all clients', async () => {
+      const client1 = new MockArrClient('radarr', 0) as unknown as ArrClient;
+      const client2 = new MockArrClient('sonarr', 0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 10,
+        upgrade_batch_size: 0,
+      };
+
+      const orchestrator = new Orchestrator([client1, client2], settings, {
+        oneShot: true,
+        registerSignalHandlers: false,
+      });
+
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+      await orchestrator.start();
+
+      exitSpy.mockRestore();
+
+      // With 0 weight share (0 * 10 = 0), Math.max(1, 0) still gives batch size 1
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
+
+      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
     });
   });
 
@@ -427,6 +512,60 @@ describe('Orchestrator', () => {
 
       // Clients should be skipped due to shutdown
       // This verifies the shutdown check works
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should remove signal handlers when dispose is called', () => {
+      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 10,
+        upgrade_batch_size: 0,
+      };
+
+      // Create with signal handlers enabled
+      const orchestrator = new Orchestrator([client1], settings, {
+        oneShot: true,
+        registerSignalHandlers: true,
+      });
+
+      const offSpy = vi.spyOn(process, 'off');
+
+      orchestrator.dispose();
+
+      // Should remove both signal handlers
+      expect(offSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+      expect(offSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
+
+      offSpy.mockRestore();
+    });
+
+    it('should handle dispose when signal handlers were not registered', () => {
+      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+
+      const settings: GlobalSettings = {
+        ...defaultSettings,
+        missing_batch_size: 10,
+        upgrade_batch_size: 0,
+      };
+
+      // Create without signal handlers
+      const orchestrator = new Orchestrator([client1], settings, {
+        oneShot: true,
+        registerSignalHandlers: false,
+      });
+
+      const offSpy = vi.spyOn(process, 'off');
+
+      // Should not throw
+      expect(() => orchestrator.dispose()).not.toThrow();
+
+      // Should not call process.off since handlers were never registered
+      expect(offSpy).not.toHaveBeenCalled();
+
+      offSpy.mockRestore();
     });
   });
 });

@@ -176,20 +176,6 @@ describe('ArrClient metadata configuration', () => {
       expect((client as any).triggerSearchesWithStagger).not.toHaveBeenCalled();
     });
 
-    it('should use default upgrade_batch_size for cutoff when limit not provided', async () => {
-      const mockRecords = [{ id: 1, title: `${expectedMetadata.mediaSingular} 1` }];
-      vi.spyOn(client as any, 'fetchWantedItems').mockResolvedValue({ records: mockRecords });
-      vi.spyOn(client as any, 'triggerSearchesWithStagger').mockResolvedValue(undefined);
-
-      await client.triggerCutoffSearches();
-
-      // Now uses paged fetching with page=1, pageSize=100
-      expect((client as any).fetchWantedItems).toHaveBeenCalledWith('cutoff', {
-        page: 1,
-        pageSize: 100,
-      });
-    });
-
     it('should handle unlimited batch size (-1)', async () => {
       const mockRecords = [
         { id: 1, title: `${expectedMetadata.mediaSingular} 1` },

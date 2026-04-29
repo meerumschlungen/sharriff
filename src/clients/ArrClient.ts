@@ -436,21 +436,17 @@ export class ArrClient {
    */
   private async processBatch(
     batchType: 'missing' | 'cutoff',
-    limit?: number,
+    limit: number,
     cycleId?: string
   ): Promise<number> {
-    const batchSizeSetting =
-      batchType === 'missing' ? this.settings.missing_batch_size : this.settings.upgrade_batch_size;
-    const batchSize = limit ?? batchSizeSetting;
-
     // -1 = unlimited, 0 = disabled
-    if (batchSize === 0) {
+    if (limit === 0) {
       this.logger.debug({ cycleId }, `${batchType} triggers disabled (batch size = 0)`);
       return 0;
     }
 
     // Fetch items with pagination and optional retry interval filtering
-    const itemsToTrigger = await this.fetchWantedItemsWithFiltering(batchType, batchSize, cycleId);
+    const itemsToTrigger = await this.fetchWantedItemsWithFiltering(batchType, limit, cycleId);
 
     if (itemsToTrigger.length === 0) {
       const message =
@@ -485,7 +481,7 @@ export class ArrClient {
    * Trigger indexer searches for missing items
    * Returns the number of searches triggered
    */
-  async triggerMissingSearches(limit?: number, cycleId?: string): Promise<number> {
+  async triggerMissingSearches(limit: number, cycleId?: string): Promise<number> {
     return this.processBatch('missing', limit, cycleId);
   }
 
@@ -493,7 +489,7 @@ export class ArrClient {
    * Trigger indexer searches for cutoff unmet items (items that haven't reached quality cutoff)
    * Returns the number of searches triggered
    */
-  async triggerCutoffSearches(limit?: number, cycleId?: string): Promise<number> {
+  async triggerCutoffSearches(limit: number, cycleId?: string): Promise<number> {
     return this.processBatch('cutoff', limit, cycleId);
   }
 }
