@@ -46,16 +46,16 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@types/node": "24.12.2",
-    "@vitest/coverage-v8": "4.1.5",
-    "@vitest/ui": "4.1.5",
-    "eslint": "10.2.1",
-    "globals": "17.5.0",
+    "@types/node": "24.12.4",
+    "@vitest/coverage-v8": "4.1.6",
+    "@vitest/ui": "4.1.6",
+    "eslint": "10.3.0",
+    "globals": "17.6.0",
     "prettier": "3.8.3",
-    "tsx": "4.21.0",
+    "tsx": "4.22.0",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.59.0",
-    "vitest": "4.1.5"
+    "typescript-eslint": "8.59.3",
+    "vitest": "4.1.6"
   },
   "engines": {
     "node": ">=20.0.0"
