@@ -54,7 +54,7 @@ jobs:
 
       - name: Report coverage
         if: github.event_name == 'pull_request'
-        uses: davelosert/vitest-coverage-report-action@3c50566c523e04813df28de8f7c48dd97d663f1c # v2.11.2
+        uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
 
   docker:
     needs: test
@@ -116,7 +116,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Draft GitHub Release
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           draft: true
           generate_release_notes: true
