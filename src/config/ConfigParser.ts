@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { readFileSync } from 'fs';
 import { parse } from 'yaml';
 import type { Config } from '../types.js';
-import { SEARCH_ORDER_VALUES, DEFAULT_SEARCH_ORDER } from '../types.js';
+import { DEFAULT_SEARCH_ORDER, SEARCH_ORDER_VALUES } from '../types.js';
 import { logger } from '../logger.js';
 
 // Zod schemas
@@ -71,12 +71,12 @@ export function loadConfig(): Config {
         `Failed to read configuration file '${configFile}': ${
           error instanceof Error ? error.message : String(error)
         }`,
-        { cause: error }
+        { cause: error },
       );
     }
   } else {
     throw new Error(
-      'Either SHARRIFF_CONFIG or SHARRIFF_CONFIG_FILE environment variable must be set'
+      'Either SHARRIFF_CONFIG or SHARRIFF_CONFIG_FILE environment variable must be set',
     );
   }
 
@@ -92,7 +92,7 @@ function interpolateEnvVars(content: string): string {
     const value = process.env[varName];
     if (value === undefined) {
       throw new Error(
-        `Environment variable '${varName}' is not defined. Required for interpolation in config.`
+        `Environment variable '${varName}' is not defined. Required for interpolation in config.`,
       );
     }
     return value;
@@ -113,7 +113,7 @@ export function parseConfig(yamlContent: string): Config {
   } catch (error) {
     throw new Error(
       `Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error }
+      { cause: error },
     );
   }
 

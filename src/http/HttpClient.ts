@@ -72,7 +72,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
   async function executeWithRetry<T>(
     operation: () => Promise<{ data: T }>,
     method: string,
-    url: string
+    url: string,
   ): Promise<T> {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -100,7 +100,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
           const errorType = error.response ? `HTTP ${status}` : 'Network';
           throw new Error(
             `${errorType} error persisted after ${attempts} attempts: ${method} ${url}`,
-            { cause: error }
+            { cause: error },
           );
         }
 
@@ -116,7 +116,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
             status,
             message: error.message,
           },
-          'Transient error, retrying...'
+          'Transient error, retrying...',
         );
 
         if (shutdownEmitter) {

@@ -22,7 +22,7 @@ logger.info(
     logFormat,
     timezone,
   },
-  'Sharriff - Starting up...'
+  'Sharriff - Starting up...',
 );
 
 export async function main() {
@@ -35,7 +35,9 @@ export async function main() {
 
     // Log configuration (excluding sensitive data)
     const logSafeInstances = Object.fromEntries(
-      Object.entries(config.instances).map(([name, { api_key: _api_key, ...inst }]) => [name, inst])
+      Object.entries(config.instances).map((
+        [name, { api_key: _api_key, ...inst }],
+      ) => [name, inst]),
     );
 
     logger.info(
@@ -43,14 +45,14 @@ export async function main() {
         global: config.global,
         instances: logSafeInstances,
       },
-      'Configuration loaded'
+      'Configuration loaded',
     );
 
     // Warn if random search order is configured (requires client-side filtering)
     if (config.global.search_order === 'random') {
       logger.warn(
         { search_order: config.global.search_order, fallback: DEFAULT_SEARCH_ORDER },
-        `random search order is configured but not yet fully implemented - falls back to configuration default (${DEFAULT_SEARCH_ORDER}). Requires client-side filtering implementation. See TODO.md for details.`
+        `random search order is configured but not yet fully implemented - falls back to configuration default (${DEFAULT_SEARCH_ORDER}). Requires client-side filtering implementation. See TODO.md for details.`,
       );
     }
 
@@ -70,11 +72,11 @@ export async function main() {
             instanceConfig.host,
             instanceConfig.api_key,
             config.global,
-            instanceConfig.weight
+            instanceConfig.weight,
           );
           await client.initialize();
           return client;
-        })
+        }),
     );
 
     if (clients.length === 0) {
@@ -93,7 +95,7 @@ export async function main() {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       },
-      'Failed to start Sharriff'
+      'Failed to start Sharriff',
     );
     process.exit(1);
   }

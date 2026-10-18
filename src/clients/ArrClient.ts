@@ -2,9 +2,9 @@
  * Base class for *arr API clients
  */
 
-import type { GlobalSettings, MediaItem, ArrType } from '../types.js';
+import type { ArrType, GlobalSettings, MediaItem } from '../types.js';
 import { DEFAULT_SEARCH_ORDER } from '../types.js';
-import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../http/HttpClient.js';
+import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from '../http/HttpClient.js';
 import { createLogger } from '../logger.js';
 import type { Logger } from 'pino';
 import { interruptibleSleep } from '../utils/shutdown.js';
@@ -123,7 +123,7 @@ export class ArrClient {
     url: string,
     apiKey: string,
     settings: GlobalSettings,
-    weight = 1.0
+    weight = 1.0,
   ) {
     this.name = name;
     this.settings = settings;
@@ -149,7 +149,7 @@ export class ArrClient {
     }
 
     const status = await this.http.get<SystemStatus>(
-      `/api/${this.metadata.apiVersion}/system/status`
+      `/api/${this.metadata.apiVersion}/system/status`,
     );
     this.logger.info(
       {
@@ -157,7 +157,7 @@ export class ArrClient {
         appName: status.appName ?? 'arr',
         apiVersion: this.metadata.apiVersion,
       },
-      'Connected to *arr instance'
+      'Connected to *arr instance',
     );
   }
 
@@ -165,8 +165,9 @@ export class ArrClient {
    * Get sort parameters for the configured search order
    */
   protected getSortParams() {
-    const order =
-      this.settings.search_order === 'random' ? DEFAULT_SEARCH_ORDER : this.settings.search_order;
+    const order = this.settings.search_order === 'random'
+      ? DEFAULT_SEARCH_ORDER
+      : this.settings.search_order;
     const lastUnderscore = order.lastIndexOf('_');
     const prefix = order.slice(0, lastUnderscore);
 
@@ -185,7 +186,7 @@ export class ArrClient {
    */
   async fetchWantedItems(
     type: 'missing' | 'cutoff',
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
   ): Promise<WantedResponse> {
     const endpoint = `/api/${this.metadata.apiVersion}/wanted/${type}`;
     const sortParams = this.getSortParams();
@@ -199,7 +200,7 @@ export class ArrClient {
   async sendCommand(
     commandName: string,
     params?: Record<string, unknown>,
-    cycleId?: string
+    cycleId?: string,
   ): Promise<CommandResponse> {
     if (this.settings.dry_run) {
       this.logger.info({ command: commandName, params, cycleId }, 'DRY RUN - Would send command');
@@ -237,7 +238,7 @@ export class ArrClient {
         {
           [this.metadata.idField]: [item.id],
         },
-        cycleId
+        cycleId,
       );
     } finally {
       release?.();
@@ -261,7 +262,7 @@ export class ArrClient {
           title: item.title,
           cycleId,
         },
-        'Triggering indexer search for item'
+        'Triggering indexer search for item',
       );
 
       await this.triggerItemSearch(item, cycleId);
@@ -297,7 +298,7 @@ export class ArrClient {
       if (isNaN(lastSearchDate)) {
         this.logger.debug(
           { itemId: item.id, lastSearchTime },
-          'Invalid lastSearchTime format, including item'
+          'Invalid lastSearchTime format, including item',
         );
         return true; // Fail open
       }
@@ -309,7 +310,7 @@ export class ArrClient {
       // Date parsing error - fail open
       this.logger.debug(
         { itemId: item.id, lastSearchTime, error },
-        'Error parsing lastSearchTime, including item'
+        'Error parsing lastSearchTime, including item',
       );
       return true;
     }
@@ -327,7 +328,7 @@ export class ArrClient {
   private async fetchWantedItemsWithFiltering(
     batchType: 'missing' | 'cutoff',
     targetCount: number,
-    cycleId?: string
+    cycleId?: string,
   ): Promise<MediaItem[]> {
     const PAGE_SIZE = 100;
     const retryIntervalDays = this.settings.retry_interval_days;
@@ -356,14 +357,13 @@ export class ArrClient {
           type: batchType,
           cycleId,
         },
-        `Fetched page ${currentPage} with ${pageItems.length} items`
+        `Fetched page ${currentPage} with ${pageItems.length} items`,
       );
 
       // Filter items if retry interval is enabled
-      const itemsToAdd =
-        retryIntervalDays > 0
-          ? pageItems.filter((item) => this.shouldIncludeItem(item, retryIntervalDays))
-          : pageItems;
+      const itemsToAdd = retryIntervalDays > 0
+        ? pageItems.filter((item) => this.shouldIncludeItem(item, retryIntervalDays))
+        : pageItems;
 
       filteredItems.push(...itemsToAdd);
       totalFiltered += pageItems.length - itemsToAdd.length;
@@ -382,10 +382,9 @@ export class ArrClient {
     }
 
     // Trim to exact target count if needed
-    const result =
-      unlimited || filteredItems.length <= targetCount
-        ? filteredItems
-        : filteredItems.slice(0, targetCount);
+    const result = unlimited || filteredItems.length <= targetCount
+      ? filteredItems
+      : filteredItems.slice(0, targetCount);
 
     // Log summary
     if (retryIntervalDays > 0) {
@@ -399,7 +398,7 @@ export class ArrClient {
           retryIntervalDays,
           cycleId,
         },
-        `Paged fetch complete: ${result.length} items retained after filtering (${totalFiltered} filtered out)`
+        `Paged fetch complete: ${result.length} items retained after filtering (${totalFiltered} filtered out)`,
       );
     } else {
       this.logger.info(
@@ -410,7 +409,7 @@ export class ArrClient {
           type: batchType,
           cycleId,
         },
-        `Paged fetch complete: ${result.length} items fetched`
+        `Paged fetch complete: ${result.length} items fetched`,
       );
     }
 
@@ -423,7 +422,7 @@ export class ArrClient {
           type: batchType,
           cycleId,
         },
-        `Partial batch: Only ${result.length} of ${targetCount} requested items found after filtering`
+        `Partial batch: Only ${result.length} of ${targetCount} requested items found after filtering`,
       );
     }
 
@@ -437,7 +436,7 @@ export class ArrClient {
   private async processBatch(
     batchType: 'missing' | 'cutoff',
     limit: number,
-    cycleId?: string
+    cycleId?: string,
   ): Promise<number> {
     // -1 = unlimited, 0 = disabled
     if (limit === 0) {
@@ -449,19 +448,17 @@ export class ArrClient {
     const itemsToTrigger = await this.fetchWantedItemsWithFiltering(batchType, limit, cycleId);
 
     if (itemsToTrigger.length === 0) {
-      const message =
-        batchType === 'cutoff'
-          ? `No cutoff unmet ${this.metadata.mediaPlural} found`
-          : `No missing ${this.metadata.mediaPlural} found`;
+      const message = batchType === 'cutoff'
+        ? `No cutoff unmet ${this.metadata.mediaPlural} found`
+        : `No missing ${this.metadata.mediaPlural} found`;
       this.logger.info({ cycleId }, message);
       return 0;
     }
 
     const titleSample = formatTitleSample(itemsToTrigger, 5);
-    const logMessage =
-      batchType === 'cutoff'
-        ? `Triggering searches for cutoff unmet: ${titleSample}`
-        : `Triggering searches for missing: ${titleSample}`;
+    const logMessage = batchType === 'cutoff'
+      ? `Triggering searches for cutoff unmet: ${titleSample}`
+      : `Triggering searches for missing: ${titleSample}`;
 
     this.logger.info({ count: itemsToTrigger.length, type: batchType, cycleId }, logMessage);
 
@@ -471,7 +468,7 @@ export class ArrClient {
 
     this.logger.info(
       { count: itemsToTrigger.length, type: batchType, durationMs: triggerDuration, cycleId },
-      `Triggered ${itemsToTrigger.length} searches`
+      `Triggered ${itemsToTrigger.length} searches`,
     );
 
     return itemsToTrigger.length;

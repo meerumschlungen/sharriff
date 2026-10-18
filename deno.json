@@ -1,0 +1,34 @@
+{
+  "nodeModulesDir": "auto",
+  "unstable": ["sloppy-imports"],
+  "fmt": {
+    "singleQuote": true,
+    "lineWidth": 100,
+    "semiColons": true,
+    "indentWidth": 2,
+    "useTabs": false,
+    "include": ["src/"]
+  },
+  "lint": {
+    "include": ["src/"],
+    "rules": {
+      "exclude": ["no-sloppy-imports", "require-await"]
+    }
+  },
+  "tasks": {
+    "dev": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
+    "start": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
+    "build": "deno task clean && deno check src/index.ts",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "deno check src/index.ts",
+    "lint": "deno lint",
+    "lint:fix": "deno lint --fix",
+    "format": "deno fmt",
+    "format:check": "deno fmt --check",
+    "check": "deno task type-check && deno task lint && deno task format:check && deno task test"
+  }
+}

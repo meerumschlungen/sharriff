@@ -26,6 +26,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+          cache: true
+
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -33,24 +39,24 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: deno ci
 
       - name: Type check
-        run: npm run type-check
+        run: deno task type-check
 
       - name: Lint
-        run: npm run lint
+        run: deno task lint
 
       - name: Format check
-        run: npm run format:check
+        run: deno task format:check
 
       - name: Run tests
         if: github.event_name != 'pull_request'
-        run: npm test
+        run: deno task test
 
       - name: Generate coverage
         if: github.event_name == 'pull_request'
-        run: npm run test:coverage
+        run: deno task test:coverage
 
       - name: Report coverage
         if: github.event_name == 'pull_request'
