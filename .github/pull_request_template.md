@@ -4,7 +4,7 @@
 
 ## Checklist
 
-- [ ] Tests pass and code follows the project style (`npm run check`), enforced by CI
+- [ ] Tests pass and code follows the project style (`deno task check`), enforced by CI
 - [ ] ✅ **PR title follows Conventional Commits format** (enforced by CI)
 
 <!--

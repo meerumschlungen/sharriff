@@ -2,15 +2,15 @@
  * Configuration loader and validator
  */
 
-import { z } from 'zod';
-import { readFileSync } from 'fs';
-import { parse } from 'yaml';
-import type { Config } from '../types.js';
-import { SEARCH_ORDER_VALUES, DEFAULT_SEARCH_ORDER } from '../types.js';
-import { logger } from '../logger.js';
+import { readFileSync } from "node:fs";
+import { parse } from "yaml";
+import { z } from "zod";
+import { logger } from "../logger.ts";
+import type { Config } from "../types.ts";
+import { DEFAULT_SEARCH_ORDER, SEARCH_ORDER_VALUES } from "../types.ts";
 
 // Zod schemas
-const ArrTypeSchema = z.enum(['radarr', 'sonarr', 'lidarr', 'whisparr']);
+const ArrTypeSchema = z.enum(["radarr", "sonarr", "lidarr", "whisparr"]);
 
 const SearchOrderSchema = z.enum(SEARCH_ORDER_VALUES);
 
@@ -38,7 +38,7 @@ const ConfigSchema = z
     instances: z
       .record(z.string(), InstanceConfigSchema)
       .refine((instances) => Object.keys(instances).length > 0, {
-        message: 'At least one instance must be defined',
+        message: "At least one instance must be defined",
       }),
   })
   .transform((data) => ({
@@ -53,30 +53,30 @@ const ConfigSchema = z
  * At least one must be set
  */
 export function loadConfig(): Config {
-  const configVar = process.env['SHARRIFF_CONFIG'];
-  const configFile = process.env['SHARRIFF_CONFIG_FILE'];
+  const configVar = process.env["SHARRIFF_CONFIG"];
+  const configFile = process.env["SHARRIFF_CONFIG_FILE"];
 
   let yamlContent: string;
 
   if (configVar) {
-    logger.debug('Loading configuration from SHARRIFF_CONFIG environment variable');
+    logger.debug("Loading configuration from SHARRIFF_CONFIG environment variable");
     yamlContent = configVar;
   } else if (configFile) {
-    logger.debug({ filePath: configFile }, 'Loading configuration from file');
+    logger.debug({ filePath: configFile }, "Loading configuration from file");
 
     try {
-      yamlContent = readFileSync(configFile, 'utf-8');
+      yamlContent = readFileSync(configFile, "utf-8");
     } catch (error) {
       throw new Error(
         `Failed to read configuration file '${configFile}': ${
           error instanceof Error ? error.message : String(error)
         }`,
-        { cause: error }
+        { cause: error },
       );
     }
   } else {
     throw new Error(
-      'Either SHARRIFF_CONFIG or SHARRIFF_CONFIG_FILE environment variable must be set'
+      "Either SHARRIFF_CONFIG or SHARRIFF_CONFIG_FILE environment variable must be set",
     );
   }
 
@@ -92,7 +92,7 @@ function interpolateEnvVars(content: string): string {
     const value = process.env[varName];
     if (value === undefined) {
       throw new Error(
-        `Environment variable '${varName}' is not defined. Required for interpolation in config.`
+        `Environment variable '${varName}' is not defined. Required for interpolation in config.`,
       );
     }
     return value;
@@ -113,7 +113,7 @@ export function parseConfig(yamlContent: string): Config {
   } catch (error) {
     throw new Error(
       `Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error }
+      { cause: error },
     );
   }
 
@@ -121,8 +121,8 @@ export function parseConfig(yamlContent: string): Config {
     return ConfigSchema.parse(rawConfig);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const issues = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`);
-      throw new Error(`Configuration validation failed:\n  - ${issues.join('\n  - ')}`, {
+      const issues = error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`);
+      throw new Error(`Configuration validation failed:\n  - ${issues.join("\n  - ")}`, {
         cause: error,
       });
     }

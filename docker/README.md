@@ -100,8 +100,9 @@ See the main README for full documentation. Key variables:
 
 ## Image Details
 
-- Base: `node:20-alpine`
-- Size: ~53MB (compressed)
-- User: `node` (non-root)
+- Base: `denoland/deno:alpine-2.9.4`
+- Runtime: Deno 2.9.4 (runs TypeScript directly, no build step)
+- User: `deno` (non-root)
 - Signal handling: dumb-init
 - Architecture: Multi-stage build (builder + production)
+- Permissions: Minimal `--allow-env --allow-read=/config --allow-net --allow-sys=hostname`

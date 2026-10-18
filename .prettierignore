@@ -1,9 +1,0 @@
-# Ignore build output
-dist/
-coverage/
-
-# Ignore dependency directories
-node_modules/
-
-# Ignore config files
-*.config.js

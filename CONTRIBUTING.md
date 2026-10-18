@@ -14,7 +14,7 @@ cd sharriff
 2. **Install dependencies**
 
 ```bash
-npm install
+deno install
 ```
 
 3. **Create a feature branch**
@@ -29,28 +29,28 @@ git checkout -b feat/your-feature-name
 
 ```bash
 # Development mode (with hot reload)
-npm run dev
+deno task dev
 
 # Run tests
-npm test
+deno task test
 
 # Run tests in watch mode
-npm run test:watch
+deno task test:watch
 
 # Check everything before committing
-npm run check
+deno task check
 ```
 
 ### Code Quality
 
 All code must pass:
 
-- ✅ TypeScript type checking (`npm run type-check`)
-- ✅ ESLint (`npm run lint`)
-- ✅ Prettier formatting (`npm run format:check`)
-- ✅ All tests (`npm test`)
+- ✅ TypeScript type checking (`deno task type-check`)
+- ✅ Deno lint (`deno task lint`)
+- ✅ Deno formatting (`deno task format:check`)
+- ✅ All tests (`deno task test`)
 
-Run `npm run check` to verify everything at once.
+Run `deno task check` to verify everything at once.
 
 ## Pull Request Process
 
@@ -126,18 +126,14 @@ git checkout main
 git pull
 git checkout -b release/1.1.0
 
-# 2. Bump version in package.json (without creating a git tag)
-npm version 1.1.0 --no-git-tag-version
-
-# 3. Commit and push the version bump
-git add package.json
-git commit -m "chore: bump version to 1.1.0"
+# 2. Commit and push the version bump (version is tracked via git tags)
+git commit --allow-empty -m "chore: bump version to 1.1.0"
 git push origin release/1.1.0
 
-# 4. Create PR with title: "chore: bump version to 1.1.0"
+# 3. Create PR with title: "chore: bump version to 1.1.0"
 #    - Get it reviewed and merged
 
-# 5. After PR is merged, create and push the release tag
+# 4. After PR is merged, create and push the release tag
 git checkout main
 git pull
 git tag v1.1.0
@@ -171,16 +167,16 @@ This triggers the automated release workflow:
 
 ```bash
 # Run all tests once
-npm test
+deno task test
 
 # Watch mode (re-runs on file changes)
-npm run test:watch
+deno task test:watch
 
 # Coverage report
-npm run test:coverage
+deno task test:coverage
 
 # Interactive UI
-npm run test:ui
+deno task test:ui
 ```
 
 ## Code Style
@@ -193,11 +189,12 @@ npm run test:ui
 
 The project uses:
 
-- **ESLint** for code quality
-- **Prettier** for formatting
-- **TypeScript** for type safety
+- **Deno lint** for code quality
+- **Deno fmt** for formatting
+- **Deno check** for type safety
+- **Vitest** for testing
 
-Run `npm run lint:fix` and `npm run format` to auto-fix most issues.
+Run `deno task lint:fix` and `deno task format` to auto-fix most issues.
 
 ## Questions?
 

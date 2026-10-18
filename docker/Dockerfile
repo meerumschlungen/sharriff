@@ -3,49 +3,52 @@
 # ===================================
 # Builder Stage
 # ===================================
-FROM node:24.22.0-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS builder
+FROM denoland/deno:alpine-2.9.4@sha256:13851184d6705150b8b230c5377f26c3bd182865d28700bb72bc0b2c271b504a AS builder
+
+# Point Deno's cache at a known location so it can be copied to the next stage
+ENV DENO_DIR=/deno-dir
 
 WORKDIR /build
 
-# Copy package files
-COPY ../package*.json ./
+# Copy manifests first so the dependency install layer caches across source-only edits
+COPY deno.json deno.lock ./
 
-# Install ALL dependencies (including devDependencies for build)
-RUN npm ci
+# Install production dependencies (skip devDependencies and @types packages)
+RUN deno install --prod --skip-types
 
 # Copy source code
-COPY ../tsconfig.json ./
-COPY ../src ./src
+COPY src ./src
 
-# Build TypeScript to JavaScript
-RUN npm run build
+# Type-check the source
+RUN deno check src/index.ts
 
 # ===================================
 # Production Stage
 # ===================================
-FROM node:24.22.0-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS production
+FROM denoland/deno:alpine-2.9.4@sha256:13851184d6705150b8b230c5377f26c3bd182865d28700bb72bc0b2c271b504a AS production
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
 
+# Point Deno's cache at the same location as the builder
+ENV DENO_DIR=/deno-dir
+
 WORKDIR /app
 
-# Copy package files
-COPY ../package*.json ./
-
-# Install only production dependencies
-RUN npm ci --omit=dev && \
-    npm cache clean --force
-
-# Copy built application from builder
-COPY --from=builder /build/dist ./dist
+# Copy manifests and source from builder
+COPY --from=builder /build/deno.json /build/deno.lock ./
+COPY --from=builder /build/src ./src
+# Copy the populated Deno cache so the runtime stage has the dependencies.
+# --chown makes it writable by the deno user so the runtime can materialize
+# node_modules from the cache without needing a separate chown layer.
+COPY --chown=deno:deno --from=builder /deno-dir /deno-dir
 
 # Create config directory with proper permissions
 RUN mkdir -p /config && \
-    chown -R node:node /config /app
+    chown -R deno:deno /config /app
 
-# Switch to non-root user (node user is built-in to node:alpine)
-USER node
+# Switch to non-root user (deno user is built-in to denoland/deno images)
+USER deno
 
 # Set production environment
 ENV NODE_ENV=production \
@@ -54,5 +57,5 @@ ENV NODE_ENV=production \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
-# Default command - run the application
-CMD ["node", "dist/index.js"]
+# Default command - run the application with minimal permissions
+CMD ["deno", "run", "--allow-env", "--allow-read=/config", "--allow-net", "--allow-sys=hostname", "src/index.ts"]

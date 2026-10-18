@@ -1,0 +1,35 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "axios": "npm:axios@^1.15.0",
+    "pino": "npm:pino@^10.3.1",
+    "pino-pretty": "npm:pino-pretty@^13.1.3",
+    "yaml": "npm:yaml@^2.4.1",
+    "zod": "npm:zod@^4.3.6",
+    "@types/node": "npm:@types/node@24.19.2",
+    "vitest": "npm:vitest@5.0.5",
+    "@vitest/coverage-v8": "npm:@vitest/coverage-v8@5.0.5",
+    "@vitest/ui": "npm:@vitest/ui@5.0.5"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "include": ["src/"]
+  },
+  "lint": {
+    "include": ["src/"]
+  },
+  "tasks": {
+    "dev": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
+    "start": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "deno check src/index.ts",
+    "lint": "deno lint",
+    "lint:fix": "deno lint --fix",
+    "format": "deno fmt",
+    "format:check": "deno fmt --check",
+    "check": "deno task type-check && deno task lint && deno task format:check && deno task test"
+  }
+}

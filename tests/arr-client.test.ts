@@ -3,11 +3,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ArrClient } from '../src/clients/ArrClient.js';
-import type { GlobalSettings, MediaItem } from '../src/types.js';
+import { ArrClient } from '../src/clients/ArrClient.ts';
+import type { GlobalSettings, MediaItem } from '../src/types.ts';
 
 // Mock the logger module
-vi.mock('../src/logger.js', () => ({
+vi.mock('../src/logger.ts', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -702,7 +702,7 @@ describe('ArrClient integration methods', () => {
       );
 
       // Import dependencies for shutdown
-      const { Mutex } = await import('../src/utils/mutex.js');
+      const { Mutex } = await import('../src/utils/mutex.ts');
       const { EventEmitter } = await import('events');
 
       const mockMutex = new Mutex();
@@ -733,7 +733,7 @@ describe('ArrClient integration methods', () => {
       );
 
       // Import dependencies for shutdown
-      const { Mutex } = await import('../src/utils/mutex.js');
+      const { Mutex } = await import('../src/utils/mutex.ts');
       const { EventEmitter } = await import('events');
 
       const mockMutex = new Mutex();

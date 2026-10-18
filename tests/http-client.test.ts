@@ -2,10 +2,10 @@
  * Tests for HttpClient retry logic and error handling
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../src/http/HttpClient.js';
 import axios, { AxiosError } from 'axios';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../src/http/HttpClient.ts';
 
 vi.mock('axios');
 
@@ -17,7 +17,7 @@ const mockLogger = {
   debug: vi.fn(),
 };
 
-vi.mock('../src/logger.js', () => ({
+vi.mock('../src/logger.ts', () => ({
   createLogger: vi.fn(() => mockLogger),
 }));
 

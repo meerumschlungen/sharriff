@@ -2,13 +2,13 @@
  * Orchestrator - Manages search cycles across multiple *arr instances
  */
 
-import type { ArrClient } from '../clients/ArrClient.js';
-import type { GlobalSettings } from '../types.js';
-import { logger } from '../logger.js';
-import { interruptibleSleep } from '../utils/shutdown.js';
-import { EventEmitter } from 'events';
-import { Mutex } from '../utils/mutex.js';
-import { randomUUID } from 'crypto';
+import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
+import type { ArrClient } from "../clients/ArrClient.ts";
+import { logger } from "../logger.ts";
+import type { GlobalSettings } from "../types.ts";
+import { Mutex } from "../utils/mutex.ts";
+import { interruptibleSleep } from "../utils/shutdown.ts";
 
 const GRACEFUL_SHUTDOWN_TIMEOUT = 30000; // 30 seconds - max wait for in-flight operations
 
@@ -40,13 +40,13 @@ export class Orchestrator {
     // Setup graceful shutdown handlers (default: enabled)
     if (options.registerSignalHandlers !== false) {
       this.sigintHandler = () => {
-        void this.handleShutdown('SIGINT');
+        void this.handleShutdown("SIGINT");
       };
       this.sigtermHandler = () => {
-        void this.handleShutdown('SIGTERM');
+        void this.handleShutdown("SIGTERM");
       };
-      process.on('SIGINT', this.sigintHandler);
-      process.on('SIGTERM', this.sigtermHandler);
+      process.on("SIGINT", this.sigintHandler);
+      process.on("SIGTERM", this.sigtermHandler);
     }
   }
 
@@ -55,13 +55,13 @@ export class Orchestrator {
    */
   async start(): Promise<void> {
     if (this.options.oneShot) {
-      logger.info({ mode: 'one-shot' }, 'Running in one-shot mode');
+      logger.info({ mode: "one-shot" }, "Running in one-shot mode");
       await this.runCycle();
-      logger.info('One-shot complete');
+      logger.info("One-shot complete");
     } else {
       logger.info(
-        { mode: 'daemon', intervalSeconds: this.settings.interval },
-        'Running in daemon mode'
+        { mode: "daemon", intervalSeconds: this.settings.interval },
+        "Running in daemon mode",
       );
       await this.runDaemon();
     }
@@ -75,14 +75,15 @@ export class Orchestrator {
       await this.runCycle();
 
       if (this.shouldStop) {
-        logger.info('Shutdown requested, exiting gracefully');
+        logger.info("Shutdown requested, exiting gracefully");
         break;
       }
 
       const intervalMinutes = Math.floor(this.settings.interval / 60);
       const intervalSeconds = this.settings.interval % 60;
-      const intervalStr =
-        intervalMinutes > 0 ? `${intervalMinutes}m ${intervalSeconds}s` : `${intervalSeconds}s`;
+      const intervalStr = intervalMinutes > 0
+        ? `${intervalMinutes}m ${intervalSeconds}s`
+        : `${intervalSeconds}s`;
 
       logger.info({ intervalSeconds: this.settings.interval }, `Sleeping for ${intervalStr}`);
       await interruptibleSleep(this.settings.interval * 1000, this.shutdownEmitter);
@@ -98,13 +99,13 @@ export class Orchestrator {
     let totalTriggered = 0;
     const instanceStats: { instance: string; missing: number; cutoff: number }[] = [];
 
-    logger.info({ cycleId }, 'Starting indexer trigger cycle');
+    logger.info({ cycleId }, "Starting indexer trigger cycle");
 
     const totalWeight = this.clients.reduce((sum, client) => sum + client.weight, 0);
 
     for (const client of this.clients) {
       if (this.shouldStop) {
-        logger.warn({ instance: client.name, cycleId }, 'Skipping due to shutdown request');
+        logger.warn({ instance: client.name, cycleId }, "Skipping due to shutdown request");
         continue;
       }
 
@@ -112,18 +113,18 @@ export class Orchestrator {
         const weightShare = totalWeight > 0 ? client.weight / totalWeight : 0;
         const missingBatchSize = this.calculateBatchSize(
           this.settings.missing_batch_size,
-          weightShare
+          weightShare,
         );
         const cutoffBatchSize = this.calculateBatchSize(
           this.settings.upgrade_batch_size,
-          weightShare
+          weightShare,
         );
 
         // Skip if both batch sizes are disabled
         if (missingBatchSize === 0 && cutoffBatchSize === 0) {
           logger.debug(
             { instance: client.name, cycleId },
-            'Instance disabled (both missing and cutoff batch sizes = 0)'
+            "Instance disabled (both missing and cutoff batch sizes = 0)",
           );
           continue;
         }
@@ -132,22 +133,21 @@ export class Orchestrator {
           {
             instance: client.name,
             weight: client.weight,
-            missingBatch:
-              missingBatchSize === 0
-                ? 'Disabled'
-                : missingBatchSize === -1
-                  ? 'Unlimited'
-                  : missingBatchSize,
+            missingBatch: missingBatchSize === 0
+              ? "Disabled"
+              : missingBatchSize === -1
+              ? "Unlimited"
+              : missingBatchSize,
             cycleId,
           },
-          'Processing instance'
+          "Processing instance",
         );
 
         let missingCount = 0;
         if (missingBatchSize === 0) {
           logger.debug(
             { instance: client.name, cycleId },
-            'Missing triggers disabled (batch size = 0)'
+            "Missing triggers disabled (batch size = 0)",
           );
         } else {
           missingCount = await client.triggerMissingSearches(missingBatchSize, cycleId);
@@ -158,21 +158,20 @@ export class Orchestrator {
         if (cutoffBatchSize === 0) {
           logger.debug(
             { instance: client.name, cycleId },
-            'Cutoff triggers disabled (batch size = 0)'
+            "Cutoff triggers disabled (batch size = 0)",
           );
         } else {
           logger.info(
             {
               instance: client.name,
-              cutoffBatch:
-                cutoffBatchSize === 0
-                  ? 'Disabled'
-                  : cutoffBatchSize === -1
-                    ? 'Unlimited'
-                    : cutoffBatchSize,
+              cutoffBatch: cutoffBatchSize === 0
+                ? "Disabled"
+                : cutoffBatchSize === -1
+                ? "Unlimited"
+                : cutoffBatchSize,
               cycleId,
             },
-            'Processing cutoff unmet items'
+            "Processing cutoff unmet items",
           );
           cutoffCount = await client.triggerCutoffSearches(cutoffBatchSize, cycleId);
         }
@@ -187,7 +186,7 @@ export class Orchestrator {
             stack: error instanceof Error ? error.stack : undefined,
             cycleId,
           },
-          'Error during indexer triggers, continuing to next instance'
+          "Error during indexer triggers, continuing to next instance",
         );
       }
     }
@@ -200,7 +199,7 @@ export class Orchestrator {
         durationMs: cycleDuration,
         instances: instanceStats,
       },
-      'Cycle complete'
+      "Cycle complete",
     );
   }
 
@@ -221,16 +220,16 @@ export class Orchestrator {
    * Handle shutdown signals
    */
   private async handleShutdown(signal: string): Promise<void> {
-    logger.warn({ signal }, 'Shutdown signal received, finishing current operation');
+    logger.warn({ signal }, "Shutdown signal received, finishing current operation");
     this.shouldStop = true;
-    this.shutdownEmitter.emit('shutdown');
+    this.shutdownEmitter.emit("shutdown");
 
     // Wait for in-flight operations
     await Promise.race([
       this.workMutex.waitForUnlock(),
       new Promise((resolve) => setTimeout(resolve, GRACEFUL_SHUTDOWN_TIMEOUT)),
     ]);
-    logger.info('Exiting gracefully');
+    logger.info("Exiting gracefully");
     process.exit(0);
   }
 
@@ -239,10 +238,10 @@ export class Orchestrator {
    */
   dispose(): void {
     if (this.sigintHandler) {
-      process.off('SIGINT', this.sigintHandler);
+      process.off("SIGINT", this.sigintHandler);
     }
     if (this.sigtermHandler) {
-      process.off('SIGTERM', this.sigtermHandler);
+      process.off("SIGTERM", this.sigtermHandler);
     }
   }
 }

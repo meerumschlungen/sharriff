@@ -2,15 +2,15 @@
  * Tests for configuration parser
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parseConfig, loadConfig } from '../src/config/ConfigParser.js';
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { loadConfig, parseConfig } from '../src/config/ConfigParser.ts';
 
-vi.mock('fs', () => ({
+vi.mock('node:fs', () => ({
   readFileSync: vi.fn(),
 }));
 
-vi.mock('../src/logger.js', () => ({
+vi.mock('../src/logger.ts', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),

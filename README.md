@@ -19,17 +19,17 @@ Minimal TypeScript orchestration service for managing automated searches across 
 ## Quick Start
 
 ```bash
-# Install dependencies
-npm install
+# Install dependencies (reads deno.json, creates deno.lock)
+deno install
 
-# Build
-npm run build
+# Type-check
+deno task type-check
 
 # Run once and exit
-SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js --once
+SHARRIFF_CONFIG_FILE=config.yaml deno task start -- --once
 
 # Run as daemon (continuous loop)
-SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js
+SHARRIFF_CONFIG_FILE=config.yaml deno task start
 ```
 
 ## Docker
@@ -86,7 +86,7 @@ The traditional approach using a configuration file:
 
 ```bash
 export SHARRIFF_CONFIG_FILE="./config.yaml"
-npm start
+deno task start
 ```
 
 ### Configuration via Environment Variable (SHARRIFF_CONFIG)
@@ -107,7 +107,7 @@ instances:
     api_key: ${RADARR_API_KEY}
 '
 
-npm start
+deno task start
 ```
 
 **Kubernetes ConfigMap Example:**
@@ -171,12 +171,12 @@ RADARR_API_KEY=your_actual_radarr_key
 instances:
   radarr:
     type: radarr
-    host: 'http://radarr:7878'
+    host: "http://radarr:7878"
     api_key: ${RADARR_API_KEY}
 
   sonarr:
     type: sonarr
-    host: 'http://sonarr:8989'
+    host: "http://sonarr:8989"
     api_key: ${SONARR_API_KEY}
 ```
 
@@ -184,7 +184,7 @@ instances:
 
 ```bash
 # Environment variables are automatically loaded from .env
-npm run dev   # or npm start
+deno task dev   # or deno task start
 ```
 
 **Notes:**
@@ -234,7 +234,7 @@ The log format is controlled by the `LOG_FORMAT` environment variable:
 Set `NODE_ENV=development` for pretty, colored logs with timestamps (or use `LOG_FORMAT=pretty`):
 
 ```bash
-NODE_ENV=development SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js --once
+NODE_ENV=development SHARRIFF_CONFIG_FILE=config.yaml deno task start -- --once
 ```
 
 Example output:
@@ -256,7 +256,7 @@ Example output:
 Set `NODE_ENV=production` for structured JSON logs suitable for log aggregation (or use `LOG_FORMAT=json`):
 
 ```bash
-NODE_ENV=production SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js
+NODE_ENV=production SHARRIFF_CONFIG_FILE=config.yaml deno task start
 ```
 
 Example output:
@@ -278,10 +278,10 @@ You can override the default format regardless of NODE_ENV:
 
 ```bash
 # Force JSON format in development
-NODE_ENV=development LOG_FORMAT=json SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js
+NODE_ENV=development LOG_FORMAT=json SHARRIFF_CONFIG_FILE=config.yaml deno task start -- --once
 
 # Force pretty format in production
-NODE_ENV=production LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js
+NODE_ENV=production LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml deno task start
 ```
 
 ### Log Levels
@@ -294,7 +294,7 @@ Control verbosity with the `LOG_LEVEL` environment variable:
 - `error` - Show errors only
 
 ```bash
-LOG_LEVEL=warn NODE_ENV=production SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js
+LOG_LEVEL=warn NODE_ENV=production SHARRIFF_CONFIG_FILE=config.yaml deno task start
 ```
 
 ### Timezone
@@ -303,33 +303,36 @@ Control timestamp timezone with the `TZ` environment variable (defaults to UTC):
 
 ```bash
 # Use local timezone
-TZ=Europe/Berlin LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js
+TZ=Europe/Berlin LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml deno task start -- --once
 
 # Use specific timezone
-TZ=America/New_York LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js
+TZ=America/New_York LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml deno task start -- --once
 
 # Force UTC (default)
-TZ=UTC LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml node dist/index.js
+TZ=UTC LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml deno task start -- --once
 ```
 
 **Note:** Timezone conversion only applies to `pretty` format logs. JSON logs always use UTC timestamps (ISO 8601 with 'Z' suffix) as this is the standard for log aggregation systems.
 
 ## Testing
 
-Sharriff includes a comprehensive test suite using Vitest:
+Sharriff includes a comprehensive test suite using Vitest (run via Deno tasks):
 
 ```bash
 # Run all tests once
-npm test
+deno task test
 
 # Run tests in watch mode
-npm run test:watch
+deno task test:watch
 
 # Run tests with UI
-npm run test:ui
+deno task test:ui
 
 # Run tests with coverage report
-npm run test:coverage
+deno task test:coverage
+
+# Run the full check pipeline (type-check, lint, format, tests)
+deno task check
 ```
 
 ### Test Coverage
@@ -365,13 +368,13 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ```bash
 # Install dependencies
-npm install
+deno install
 
 # Run tests
-npm test
+deno task test
 
 # Check everything (type-check, lint, format, tests)
-npm run check
+deno task check
 
 # Create a PR with conventional commit title
 # Example: "feat: add retry_interval_days implementation"
