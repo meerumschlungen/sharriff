@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../src/http/HttpClient.js';
 import axios, { AxiosError } from 'axios';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 
 vi.mock('axios');
 

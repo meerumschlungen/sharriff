@@ -19,7 +19,7 @@
 import axios, { AxiosError } from 'axios';
 import { createLogger } from '../logger.js';
 import { interruptibleSleep } from '../utils/shutdown.js';
-import type { EventEmitter } from 'events';
+import type { EventEmitter } from 'node:events';
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 

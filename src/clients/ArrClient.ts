@@ -8,7 +8,7 @@ import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from '../http/Http
 import { createLogger } from '../logger.js';
 import type { Logger } from 'pino';
 import { interruptibleSleep } from '../utils/shutdown.js';
-import type { EventEmitter } from 'events';
+import type { EventEmitter } from 'node:events';
 import type { Mutex } from '../utils/mutex.js';
 
 interface SystemStatus {

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { interruptibleSleep } from '../src/utils/shutdown.js';
 
 describe('Shutdown utilities', () => {

@@ -2,7 +2,7 @@
  * Shutdown coordination utilities
  */
 
-import type { EventEmitter } from 'events';
+import type { EventEmitter } from 'node:events';
 
 /**
  * Interruptible sleep that can be cancelled by shutdown signal

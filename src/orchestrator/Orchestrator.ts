@@ -6,9 +6,9 @@ import type { ArrClient } from '../clients/ArrClient.js';
 import type { GlobalSettings } from '../types.js';
 import { logger } from '../logger.js';
 import { interruptibleSleep } from '../utils/shutdown.js';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { Mutex } from '../utils/mutex.js';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 const GRACEFUL_SHUTDOWN_TIMEOUT = 30000; // 30 seconds - max wait for in-flight operations
 

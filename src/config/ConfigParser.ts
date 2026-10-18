@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import type { Config } from '../types.js';
 import { DEFAULT_SEARCH_ORDER, SEARCH_ORDER_VALUES } from '../types.js';

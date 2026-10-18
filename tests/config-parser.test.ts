@@ -4,9 +4,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { parseConfig, loadConfig } from '../src/config/ConfigParser.js';
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 
-vi.mock('fs', () => ({
+vi.mock('node:fs', () => ({
   readFileSync: vi.fn(),
 }));
 
