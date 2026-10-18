@@ -19,7 +19,7 @@ Minimal TypeScript orchestration service for managing automated searches across 
 ## Quick Start
 
 ```bash
-# Install dependencies (reads package.json, creates deno.lock + node_modules)
+# Install dependencies (reads deno.json, creates deno.lock + node_modules)
 deno install
 
 # Type-check
@@ -171,12 +171,12 @@ RADARR_API_KEY=your_actual_radarr_key
 instances:
   radarr:
     type: radarr
-    host: 'http://radarr:7878'
+    host: "http://radarr:7878"
     api_key: ${RADARR_API_KEY}
 
   sonarr:
     type: sonarr
-    host: 'http://sonarr:8989'
+    host: "http://sonarr:8989"
     api_key: ${SONARR_API_KEY}
 ```
 

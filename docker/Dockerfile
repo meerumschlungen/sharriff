@@ -11,10 +11,10 @@ ENV DENO_DIR=/deno-dir
 WORKDIR /build
 
 # Copy manifests first so the dependency install layer caches across source-only edits
-COPY deno.json deno.lock package.json package-lock.json ./
+COPY deno.json deno.lock ./
 
 # Install production dependencies (skip devDependencies and @types packages)
-RUN deno ci --prod --skip-types
+RUN deno install --prod --skip-types
 
 # Copy source code
 COPY src ./src
@@ -36,7 +36,7 @@ ENV DENO_DIR=/deno-dir
 WORKDIR /app
 
 # Copy manifests and source from builder
-COPY --from=builder /build/deno.json /build/deno.lock /build/package.json /build/package-lock.json ./
+COPY --from=builder /build/deno.json /build/deno.lock ./
 COPY --from=builder /build/src ./src
 # Copy the installed node_modules so the runtime does not need to re-create it
 COPY --from=builder /build/node_modules ./node_modules

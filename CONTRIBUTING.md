@@ -126,18 +126,14 @@ git checkout main
 git pull
 git checkout -b release/1.1.0
 
-# 2. Bump version in package.json (without creating a git tag)
-npm version 1.1.0 --no-git-tag-version
-
-# 3. Commit and push the version bump
-git add package.json
-git commit -m "chore: bump version to 1.1.0"
+# 2. Commit and push the version bump (version is tracked via git tags)
+git commit --allow-empty -m "chore: bump version to 1.1.0"
 git push origin release/1.1.0
 
-# 4. Create PR with title: "chore: bump version to 1.1.0"
+# 3. Create PR with title: "chore: bump version to 1.1.0"
 #    - Get it reviewed and merged
 
-# 5. After PR is merged, create and push the release tag
+# 4. After PR is merged, create and push the release tag
 git checkout main
 git pull
 git tag v1.1.0
