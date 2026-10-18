@@ -16,10 +16,10 @@
  * - 30 second request timeout
  */
 
-import axios, { AxiosError } from 'axios';
-import type { EventEmitter } from 'node:events';
-import { createLogger } from '../logger.ts';
-import { interruptibleSleep } from '../utils/shutdown.ts';
+import axios, { AxiosError } from "axios";
+import type { EventEmitter } from "node:events";
+import { createLogger } from "../logger.ts";
+import { interruptibleSleep } from "../utils/shutdown.ts";
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -53,7 +53,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
   const retryDelay = config.retryDelay ?? DEFAULT_RETRY_DELAY;
   const shutdownEmitter = config.shutdownEmitter;
   const logger = createLogger({
-    component: 'HttpClient',
+    component: "HttpClient",
     baseURL: config.baseURL,
   });
 
@@ -61,8 +61,8 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
     baseURL: config.baseURL,
     timeout: config.timeout ?? DEFAULT_TIMEOUT,
     headers: {
-      'X-Api-Key': config.apiKey,
-      'Content-Type': 'application/json',
+      "X-Api-Key": config.apiKey,
+      "Content-Type": "application/json",
     },
   });
 
@@ -97,7 +97,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
 
         if (!isRetryable || attempt === maxRetries) {
           const attempts = attempt + 1;
-          const errorType = error.response ? `HTTP ${status}` : 'Network';
+          const errorType = error.response ? `HTTP ${status}` : "Network";
           throw new Error(
             `${errorType} error persisted after ${attempts} attempts: ${method} ${url}`,
             { cause: error },
@@ -116,7 +116,7 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
             status,
             message: error.message,
           },
-          'Transient error, retrying...',
+          "Transient error, retrying...",
         );
 
         if (shutdownEmitter) {
@@ -127,16 +127,16 @@ export function createHttpClient(config: HttpClientConfig): HttpClient {
       }
     }
 
-    throw new Error('Unreachable');
+    throw new Error("Unreachable");
   }
 
   return {
     get<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-      return executeWithRetry(() => client.get<T>(url, { params }), 'GET', url);
+      return executeWithRetry(() => client.get<T>(url, { params }), "GET", url);
     },
 
     post<T>(url: string, data?: unknown): Promise<T> {
-      return executeWithRetry(() => client.post<T>(url, data), 'POST', url);
+      return executeWithRetry(() => client.post<T>(url, data), "POST", url);
     },
   };
 }

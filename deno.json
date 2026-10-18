@@ -12,11 +12,7 @@
     "@vitest/ui": "npm:@vitest/ui@5.0.5"
   },
   "fmt": {
-    "singleQuote": true,
     "lineWidth": 100,
-    "semiColons": true,
-    "indentWidth": 2,
-    "useTabs": false,
     "include": ["src/"]
   },
   "lint": {

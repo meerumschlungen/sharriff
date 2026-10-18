@@ -2,21 +2,21 @@
  * Core type definitions
  */
 
-export type ArrType = 'radarr' | 'sonarr' | 'lidarr' | 'whisparr';
+export type ArrType = "radarr" | "sonarr" | "lidarr" | "whisparr";
 
 /**
  * Available search order values
  */
 export const SEARCH_ORDER_VALUES = [
-  'alphabetical_ascending',
-  'alphabetical_descending',
-  'last_added_ascending',
-  'last_added_descending',
-  'last_searched_ascending',
-  'last_searched_descending',
-  'release_date_ascending',
-  'release_date_descending',
-  'random',
+  "alphabetical_ascending",
+  "alphabetical_descending",
+  "last_added_ascending",
+  "last_added_descending",
+  "last_searched_ascending",
+  "last_searched_descending",
+  "release_date_ascending",
+  "release_date_descending",
+  "random",
 ] as const;
 
 export type SearchOrder = (typeof SEARCH_ORDER_VALUES)[number];
@@ -24,7 +24,7 @@ export type SearchOrder = (typeof SEARCH_ORDER_VALUES)[number];
 /**
  * Default search order for global settings
  */
-export const DEFAULT_SEARCH_ORDER: SearchOrder = 'last_searched_ascending';
+export const DEFAULT_SEARCH_ORDER: SearchOrder = "last_searched_ascending";
 
 export interface GlobalSettings {
   interval: number;

@@ -2,7 +2,7 @@
  * Shutdown coordination utilities
  */
 
-import type { EventEmitter } from 'node:events';
+import type { EventEmitter } from "node:events";
 
 /**
  * Interruptible sleep that can be cancelled by shutdown signal
@@ -10,7 +10,7 @@ import type { EventEmitter } from 'node:events';
 export function interruptibleSleep(ms: number, emitter: EventEmitter): Promise<void> {
   return new Promise<void>((resolve) => {
     const timeoutId = setTimeout(() => {
-      emitter.off('shutdown', shutdownHandler);
+      emitter.off("shutdown", shutdownHandler);
       resolve();
     }, ms);
 
@@ -19,6 +19,6 @@ export function interruptibleSleep(ms: number, emitter: EventEmitter): Promise<v
       resolve();
     };
 
-    emitter.once('shutdown', shutdownHandler);
+    emitter.once("shutdown", shutdownHandler);
   });
 }

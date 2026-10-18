@@ -2,14 +2,14 @@
  * Base class for *arr API clients
  */
 
-import type { EventEmitter } from 'node:events';
-import type { Logger } from 'pino';
-import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from '../http/HttpClient.ts';
-import { createLogger } from '../logger.ts';
-import type { ArrType, GlobalSettings, MediaItem } from '../types.ts';
-import { DEFAULT_SEARCH_ORDER } from '../types.ts';
-import type { Mutex } from '../utils/mutex.ts';
-import { interruptibleSleep } from '../utils/shutdown.ts';
+import type { EventEmitter } from "node:events";
+import type { Logger } from "pino";
+import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from "../http/HttpClient.ts";
+import { createLogger } from "../logger.ts";
+import type { ArrType, GlobalSettings, MediaItem } from "../types.ts";
+import { DEFAULT_SEARCH_ORDER } from "../types.ts";
+import type { Mutex } from "../utils/mutex.ts";
+import { interruptibleSleep } from "../utils/shutdown.ts";
 
 interface SystemStatus {
   version: string;
@@ -50,36 +50,36 @@ interface ClientMetadata {
  */
 const CLIENT_METADATA: Record<ArrType, ClientMetadata> = {
   radarr: {
-    apiVersion: 'v3',
-    commandName: 'MoviesSearch',
-    idField: 'movieIds',
-    mediaSingular: 'movie',
-    mediaPlural: 'movies',
-    sortTablePrefix: 'movies',
+    apiVersion: "v3",
+    commandName: "MoviesSearch",
+    idField: "movieIds",
+    mediaSingular: "movie",
+    mediaPlural: "movies",
+    sortTablePrefix: "movies",
   },
   sonarr: {
-    apiVersion: 'v3',
-    commandName: 'EpisodeSearch',
-    idField: 'episodeIds',
-    mediaSingular: 'episode',
-    mediaPlural: 'episodes',
-    sortTablePrefix: 'episodes',
+    apiVersion: "v3",
+    commandName: "EpisodeSearch",
+    idField: "episodeIds",
+    mediaSingular: "episode",
+    mediaPlural: "episodes",
+    sortTablePrefix: "episodes",
   },
   lidarr: {
-    apiVersion: 'v1',
-    commandName: 'AlbumSearch',
-    idField: 'albumIds',
-    mediaSingular: 'album',
-    mediaPlural: 'albums',
-    sortTablePrefix: 'albums',
+    apiVersion: "v1",
+    commandName: "AlbumSearch",
+    idField: "albumIds",
+    mediaSingular: "album",
+    mediaPlural: "albums",
+    sortTablePrefix: "albums",
   },
   whisparr: {
-    apiVersion: 'v3',
-    commandName: 'MoviesSearch',
-    idField: 'movieIds',
-    mediaSingular: 'movie',
-    mediaPlural: 'movies',
-    sortTablePrefix: 'movies',
+    apiVersion: "v3",
+    commandName: "MoviesSearch",
+    idField: "movieIds",
+    mediaSingular: "movie",
+    mediaPlural: "movies",
+    sortTablePrefix: "movies",
   },
 };
 
@@ -87,10 +87,10 @@ const CLIENT_METADATA: Record<ArrType, ClientMetadata> = {
  * Base sort field names (without table prefix)
  */
 const BASE_SORT_FIELDS: Record<string, string> = {
-  last_searched: 'lastSearchTime',
-  last_added: 'dateAdded',
-  release_date: 'releaseDate',
-  alphabetical: 'title',
+  last_searched: "lastSearchTime",
+  last_added: "dateAdded",
+  release_date: "releaseDate",
+  alphabetical: "title",
 };
 /**
  * Format a sample of titles for logging (first maxTitles items)
@@ -99,7 +99,7 @@ function formatTitleSample(items: MediaItem[], maxTitles = 5): string {
   const titles = items
     .slice(0, maxTitles)
     .map((item) => item.title ?? `ID:${item.id}`)
-    .join(', ');
+    .join(", ");
 
   if (items.length > maxTitles) {
     return `${titles} ... and ${items.length - maxTitles} more`;
@@ -132,7 +132,7 @@ export class ArrClient {
     this.logger = createLogger({ instance: name });
 
     this.httpConfig = {
-      baseURL: url.replace(/\/$/, ''),
+      baseURL: url.replace(/\/$/, ""),
       apiKey,
       timeout: DEFAULT_TIMEOUT,
     };
@@ -145,7 +145,7 @@ export class ArrClient {
    */
   async initialize(): Promise<void> {
     if (this.settings.dry_run) {
-      this.logger.info('DRY RUN MODE - Health check');
+      this.logger.info("DRY RUN MODE - Health check");
     }
 
     const status = await this.http.get<SystemStatus>(
@@ -154,10 +154,10 @@ export class ArrClient {
     this.logger.info(
       {
         version: status.version,
-        appName: status.appName ?? 'arr',
+        appName: status.appName ?? "arr",
         apiVersion: this.metadata.apiVersion,
       },
-      'Connected to *arr instance',
+      "Connected to *arr instance",
     );
   }
 
@@ -165,14 +165,14 @@ export class ArrClient {
    * Get sort parameters for the configured search order
    */
   protected getSortParams() {
-    const order = this.settings.search_order === 'random'
+    const order = this.settings.search_order === "random"
       ? DEFAULT_SEARCH_ORDER
       : this.settings.search_order;
-    const lastUnderscore = order.lastIndexOf('_');
+    const lastUnderscore = order.lastIndexOf("_");
     const prefix = order.slice(0, lastUnderscore);
 
     // Build qualified sort key: "movies.lastSearchTime", "episodes.lastSearchTime", etc.
-    const baseField = BASE_SORT_FIELDS[prefix] ?? 'title';
+    const baseField = BASE_SORT_FIELDS[prefix] ?? "title";
     const sortKey = `${this.metadata.sortTablePrefix}.${baseField}`;
 
     return {
@@ -185,7 +185,7 @@ export class ArrClient {
    * Fetch wanted items from API (missing or cutoff unmet)
    */
   fetchWantedItems(
-    type: 'missing' | 'cutoff',
+    type: "missing" | "cutoff",
     params?: Record<string, unknown>,
   ): Promise<WantedResponse> {
     const endpoint = `/api/${this.metadata.apiVersion}/wanted/${type}`;
@@ -203,8 +203,8 @@ export class ArrClient {
     cycleId?: string,
   ): Promise<CommandResponse> {
     if (this.settings.dry_run) {
-      this.logger.info({ command: commandName, params, cycleId }, 'DRY RUN - Would send command');
-      return Promise.resolve({ id: -1, name: commandName, state: 'dry-run' });
+      this.logger.info({ command: commandName, params, cycleId }, "DRY RUN - Would send command");
+      return Promise.resolve({ id: -1, name: commandName, state: "dry-run" });
     }
 
     return this.http.post<CommandResponse>(`/api/${this.metadata.apiVersion}/command`, {
@@ -262,7 +262,7 @@ export class ArrClient {
           title: item.title,
           cycleId,
         },
-        'Triggering indexer search for item',
+        "Triggering indexer search for item",
       );
 
       await this.triggerItemSearch(item, cycleId);
@@ -284,7 +284,7 @@ export class ArrClient {
   private shouldIncludeItem(item: MediaItem, retryIntervalDays: number): boolean {
     if (retryIntervalDays === 0) return true;
 
-    const lastSearchTime = item['lastSearchTime'];
+    const lastSearchTime = item["lastSearchTime"];
 
     // Include items never searched (null/undefined/missing)
     if (!lastSearchTime) {
@@ -298,7 +298,7 @@ export class ArrClient {
       if (isNaN(lastSearchDate)) {
         this.logger.debug(
           { itemId: item.id, lastSearchTime },
-          'Invalid lastSearchTime format, including item',
+          "Invalid lastSearchTime format, including item",
         );
         return true; // Fail open
       }
@@ -310,7 +310,7 @@ export class ArrClient {
       // Date parsing error - fail open
       this.logger.debug(
         { itemId: item.id, lastSearchTime, error },
-        'Error parsing lastSearchTime, including item',
+        "Error parsing lastSearchTime, including item",
       );
       return true;
     }
@@ -326,7 +326,7 @@ export class ArrClient {
    * @returns Array of filtered items
    */
   private async fetchWantedItemsWithFiltering(
-    batchType: 'missing' | 'cutoff',
+    batchType: "missing" | "cutoff",
     targetCount: number,
     cycleId?: string,
   ): Promise<MediaItem[]> {
@@ -434,7 +434,7 @@ export class ArrClient {
    * Returns the number of searches triggered
    */
   private async processBatch(
-    batchType: 'missing' | 'cutoff',
+    batchType: "missing" | "cutoff",
     limit: number,
     cycleId?: string,
   ): Promise<number> {
@@ -448,7 +448,7 @@ export class ArrClient {
     const itemsToTrigger = await this.fetchWantedItemsWithFiltering(batchType, limit, cycleId);
 
     if (itemsToTrigger.length === 0) {
-      const message = batchType === 'cutoff'
+      const message = batchType === "cutoff"
         ? `No cutoff unmet ${this.metadata.mediaPlural} found`
         : `No missing ${this.metadata.mediaPlural} found`;
       this.logger.info({ cycleId }, message);
@@ -456,7 +456,7 @@ export class ArrClient {
     }
 
     const titleSample = formatTitleSample(itemsToTrigger, 5);
-    const logMessage = batchType === 'cutoff'
+    const logMessage = batchType === "cutoff"
       ? `Triggering searches for cutoff unmet: ${titleSample}`
       : `Triggering searches for missing: ${titleSample}`;
 
@@ -479,7 +479,7 @@ export class ArrClient {
    * Returns the number of searches triggered
    */
   triggerMissingSearches(limit: number, cycleId?: string): Promise<number> {
-    return this.processBatch('missing', limit, cycleId);
+    return this.processBatch("missing", limit, cycleId);
   }
 
   /**
@@ -487,6 +487,6 @@ export class ArrClient {
    * Returns the number of searches triggered
    */
   triggerCutoffSearches(limit: number, cycleId?: string): Promise<number> {
-    return this.processBatch('cutoff', limit, cycleId);
+    return this.processBatch("cutoff", limit, cycleId);
   }
 }
