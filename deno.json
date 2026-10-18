@@ -18,8 +18,6 @@
   "tasks": {
     "dev": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
     "start": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
-    "build": "deno task clean && deno check src/index.ts",
-    "clean": "rm -rf dist",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

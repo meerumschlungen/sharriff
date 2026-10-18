@@ -23,7 +23,7 @@ Minimal TypeScript orchestration service for managing automated searches across 
 deno install
 
 # Type-check
-deno task build
+deno task type-check
 
 # Run once and exit
 SHARRIFF_CONFIG_FILE=config.yaml deno task start -- --once
