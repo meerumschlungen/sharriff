@@ -19,7 +19,7 @@ Minimal TypeScript orchestration service for managing automated searches across 
 ## Quick Start
 
 ```bash
-# Install dependencies (reads deno.json, creates deno.lock + node_modules)
+# Install dependencies (reads deno.json, creates deno.lock)
 deno install
 
 # Type-check

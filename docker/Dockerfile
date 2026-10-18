@@ -38,10 +38,10 @@ WORKDIR /app
 # Copy manifests and source from builder
 COPY --from=builder /build/deno.json /build/deno.lock ./
 COPY --from=builder /build/src ./src
-# Copy the installed node_modules so the runtime does not need to re-create it
-COPY --from=builder /build/node_modules ./node_modules
-# Copy the populated Deno cache so the runtime stage has the dependencies
-COPY --from=builder /deno-dir /deno-dir
+# Copy the populated Deno cache so the runtime stage has the dependencies.
+# --chown makes it writable by the deno user so the runtime can materialize
+# node_modules from the cache without needing a separate chown layer.
+COPY --chown=deno:deno --from=builder /deno-dir /deno-dir
 
 # Create config directory with proper permissions
 RUN mkdir -p /config && \
