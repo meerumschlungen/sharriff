@@ -2,13 +2,13 @@
  * Orchestrator - Manages search cycles across multiple *arr instances
  */
 
-import type { ArrClient } from '../clients/ArrClient.js';
-import type { GlobalSettings } from '../types.js';
-import { logger } from '../logger.js';
-import { interruptibleSleep } from '../utils/shutdown.js';
-import { EventEmitter } from 'node:events';
-import { Mutex } from '../utils/mutex.js';
 import { randomUUID } from 'node:crypto';
+import { EventEmitter } from 'node:events';
+import type { ArrClient } from '../clients/ArrClient.ts';
+import { logger } from '../logger.ts';
+import type { GlobalSettings } from '../types.ts';
+import { Mutex } from '../utils/mutex.ts';
+import { interruptibleSleep } from '../utils/shutdown.ts';
 
 const GRACEFUL_SHUTDOWN_TIMEOUT = 30000; // 30 seconds - max wait for in-flight operations
 

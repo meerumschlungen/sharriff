@@ -3,12 +3,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Orchestrator } from '../src/orchestrator/Orchestrator.js';
-import type { ArrClient } from '../src/clients/ArrClient.js';
-import type { GlobalSettings } from '../src/types.js';
+import { Orchestrator } from '../src/orchestrator/Orchestrator.ts';
+import type { ArrClient } from '../src/clients/ArrClient.ts';
+import type { GlobalSettings } from '../src/types.ts';
 
 // Mock logger
-vi.mock('../src/logger.js', () => ({
+vi.mock('../src/logger.ts', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -402,7 +402,7 @@ describe('Orchestrator', () => {
     });
 
     it('should log error details when client fails', async () => {
-      const { logger } = await import('../src/logger.js');
+      const { logger } = await import('../src/logger.ts');
       const client = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
 
       const testError = new Error('API timeout');
@@ -438,7 +438,7 @@ describe('Orchestrator', () => {
     });
 
     it('should handle non-Error exceptions', async () => {
-      const { logger } = await import('../src/logger.js');
+      const { logger } = await import('../src/logger.ts');
       const client = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
 
       // Throw a string instead of Error

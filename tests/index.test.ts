@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Config } from '../src/types.js';
+import type { Config } from '../src/types.ts';
 
 // Mock all dependencies
 const mockLoadConfig = vi.fn();
@@ -24,19 +24,19 @@ class MockOrchestrator {
   start = mockOrchestratorStart;
 }
 
-vi.mock('../src/config/ConfigParser.js', () => ({
+vi.mock('../src/config/ConfigParser.ts', () => ({
   loadConfig: mockLoadConfig,
 }));
 
-vi.mock('../src/clients/ArrClient.js', () => ({
+vi.mock('../src/clients/ArrClient.ts', () => ({
   ArrClient: MockArrClient,
 }));
 
-vi.mock('../src/orchestrator/Orchestrator.js', () => ({
+vi.mock('../src/orchestrator/Orchestrator.ts', () => ({
   Orchestrator: MockOrchestrator,
 }));
 
-vi.mock('../src/logger.js', () => ({
+vi.mock('../src/logger.ts', () => ({
   logger: mockLogger,
   createLogger: vi.fn(() => mockLogger),
 }));
@@ -94,7 +94,7 @@ describe('Main Application', () => {
 
       mockLoadConfig.mockReturnValue(config);
 
-      const { main } = await import('../src/index.js');
+      const { main } = await import('../src/index.ts');
       await main();
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -128,7 +128,7 @@ describe('Main Application', () => {
 
       mockLoadConfig.mockReturnValue(config);
 
-      const { main } = await import('../src/index.js');
+      const { main } = await import('../src/index.ts');
       await main();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
@@ -143,7 +143,7 @@ describe('Main Application', () => {
         throw error;
       });
 
-      const { main } = await import('../src/index.js');
+      const { main } = await import('../src/index.ts');
       await main();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
@@ -181,7 +181,7 @@ describe('Main Application', () => {
       mockLoadConfig.mockReturnValue(config);
       mockInitialize.mockRejectedValue(new Error('Connection failed'));
 
-      const { main } = await import('../src/index.js');
+      const { main } = await import('../src/index.ts');
       await main();
 
       expect(mockLogger.error).toHaveBeenCalledWith(
@@ -234,7 +234,7 @@ describe('Main Application', () => {
 
       mockLoadConfig.mockReturnValue(config);
 
-      const { main } = await import('../src/index.js');
+      const { main } = await import('../src/index.ts');
       await main();
 
       // Should log that sonarr is disabled
@@ -276,7 +276,7 @@ describe('Main Application', () => {
 
       mockLoadConfig.mockReturnValue(config);
 
-      const { main } = await import('../src/index.js');
+      const { main } = await import('../src/index.ts');
       await main();
 
       // Should log config without api_key
@@ -337,7 +337,7 @@ describe('Main Application', () => {
 
       mockLoadConfig.mockReturnValue(config);
 
-      const { main } = await import('../src/index.js');
+      const { main } = await import('../src/index.ts');
       await main();
 
       expect(mockOrchestratorStart).toHaveBeenCalled();
@@ -369,7 +369,7 @@ describe('Main Application', () => {
 
       mockLoadConfig.mockReturnValue(config);
 
-      const { main } = await import('../src/index.js');
+      const { main } = await import('../src/index.ts');
       await main();
 
       expect(mockOrchestratorStart).toHaveBeenCalled();

@@ -2,12 +2,12 @@
  * Configuration loader and validator
  */
 
-import { z } from 'zod';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import type { Config } from '../types.js';
-import { DEFAULT_SEARCH_ORDER, SEARCH_ORDER_VALUES } from '../types.js';
-import { logger } from '../logger.js';
+import { z } from 'zod';
+import { logger } from '../logger.ts';
+import type { Config } from '../types.ts';
+import { DEFAULT_SEARCH_ORDER, SEARCH_ORDER_VALUES } from '../types.ts';
 
 // Zod schemas
 const ArrTypeSchema = z.enum(['radarr', 'sonarr', 'lidarr', 'whisparr']);

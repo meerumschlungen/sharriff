@@ -2,9 +2,9 @@
  * Tests for shutdown utilities
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
-import { interruptibleSleep } from '../src/utils/shutdown.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { interruptibleSleep } from '../src/utils/shutdown.ts';
 
 describe('Shutdown utilities', () => {
   let emitter: EventEmitter;

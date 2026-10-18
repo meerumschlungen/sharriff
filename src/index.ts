@@ -3,11 +3,11 @@
  * Main entry point
  */
 
-import { loadConfig } from './config/ConfigParser.js';
-import { ArrClient } from './clients/ArrClient.js';
-import { Orchestrator } from './orchestrator/Orchestrator.js';
-import { logger } from './logger.js';
-import { DEFAULT_SEARCH_ORDER } from './types.js';
+import { loadConfig } from './config/ConfigParser.ts';
+import { ArrClient } from './clients/ArrClient.ts';
+import { Orchestrator } from './orchestrator/Orchestrator.ts';
+import { logger } from './logger.ts';
+import { DEFAULT_SEARCH_ORDER } from './types.ts';
 
 // Log startup information
 const isDevelopment = process.env['NODE_ENV'] !== 'production';

@@ -1,6 +1,5 @@
 {
   "nodeModulesDir": "auto",
-  "unstable": ["sloppy-imports"],
   "imports": {
     "axios": "npm:axios@^1.15.0",
     "pino": "npm:pino@^10.3.1",
@@ -21,10 +20,7 @@
     "include": ["src/"]
   },
   "lint": {
-    "include": ["src/"],
-    "rules": {
-      "exclude": ["no-sloppy-imports", "require-await"]
-    }
+    "include": ["src/"]
   },
   "tasks": {
     "dev": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",

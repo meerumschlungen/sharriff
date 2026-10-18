@@ -2,14 +2,14 @@
  * Base class for *arr API clients
  */
 
-import type { ArrType, GlobalSettings, MediaItem } from '../types.js';
-import { DEFAULT_SEARCH_ORDER } from '../types.js';
-import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from '../http/HttpClient.js';
-import { createLogger } from '../logger.js';
-import type { Logger } from 'pino';
-import { interruptibleSleep } from '../utils/shutdown.js';
 import type { EventEmitter } from 'node:events';
-import type { Mutex } from '../utils/mutex.js';
+import type { Logger } from 'pino';
+import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from '../http/HttpClient.ts';
+import { createLogger } from '../logger.ts';
+import type { ArrType, GlobalSettings, MediaItem } from '../types.ts';
+import { DEFAULT_SEARCH_ORDER } from '../types.ts';
+import type { Mutex } from '../utils/mutex.ts';
+import { interruptibleSleep } from '../utils/shutdown.ts';
 
 interface SystemStatus {
   version: string;
@@ -184,7 +184,7 @@ export class ArrClient {
   /**
    * Fetch wanted items from API (missing or cutoff unmet)
    */
-  async fetchWantedItems(
+  fetchWantedItems(
     type: 'missing' | 'cutoff',
     params?: Record<string, unknown>,
   ): Promise<WantedResponse> {
@@ -197,14 +197,14 @@ export class ArrClient {
   /**
    * Send a command to the *arr instance
    */
-  async sendCommand(
+  sendCommand(
     commandName: string,
     params?: Record<string, unknown>,
     cycleId?: string,
   ): Promise<CommandResponse> {
     if (this.settings.dry_run) {
       this.logger.info({ command: commandName, params, cycleId }, 'DRY RUN - Would send command');
-      return { id: -1, name: commandName, state: 'dry-run' };
+      return Promise.resolve({ id: -1, name: commandName, state: 'dry-run' });
     }
 
     return this.http.post<CommandResponse>(`/api/${this.metadata.apiVersion}/command`, {
@@ -478,7 +478,7 @@ export class ArrClient {
    * Trigger indexer searches for missing items
    * Returns the number of searches triggered
    */
-  async triggerMissingSearches(limit: number, cycleId?: string): Promise<number> {
+  triggerMissingSearches(limit: number, cycleId?: string): Promise<number> {
     return this.processBatch('missing', limit, cycleId);
   }
 
@@ -486,7 +486,7 @@ export class ArrClient {
    * Trigger indexer searches for cutoff unmet items (items that haven't reached quality cutoff)
    * Returns the number of searches triggered
    */
-  async triggerCutoffSearches(limit: number, cycleId?: string): Promise<number> {
+  triggerCutoffSearches(limit: number, cycleId?: string): Promise<number> {
     return this.processBatch('cutoff', limit, cycleId);
   }
 }
