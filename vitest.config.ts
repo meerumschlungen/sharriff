@@ -9,6 +9,8 @@ export default defineConfig({
       'tests/mutex.test.ts',
       'tests/shutdown.test.ts',
       'tests/logger.test.ts',
+      'tests/config-parser.test.ts',
+      'tests/http-client.test.ts',
       '**/node_modules/**',
       '**/dist/**',
     ],

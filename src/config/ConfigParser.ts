@@ -2,7 +2,6 @@
  * Configuration loader and validator
  */
 
-import { readFileSync } from "node:fs";
 import { parse } from "yaml";
 import { z } from "zod";
 import { logger } from "../logger.ts";
@@ -65,7 +64,7 @@ export function loadConfig(): Config {
     logger.debug({ filePath: configFile }, "Loading configuration from file");
 
     try {
-      yamlContent = readFileSync(configFile, "utf-8");
+      yamlContent = Deno.readTextFileSync(configFile);
     } catch (error) {
       throw new Error(
         `Failed to read configuration file '${configFile}': ${

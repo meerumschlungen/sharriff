@@ -2,31 +2,13 @@
  * Tests for configuration parser
  */
 
-import { readFileSync } from 'node:fs';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadConfig, parseConfig } from '../src/config/ConfigParser.ts';
+import { afterEach, beforeEach, describe, it } from "node:test";
+import { expect } from "@std/expect";
+import { stub } from "@std/testing/mock";
+import { loadConfig, parseConfig } from "../src/config/ConfigParser.ts";
 
-vi.mock('node:fs', () => ({
-  readFileSync: vi.fn(),
-}));
-
-vi.mock('../src/logger.ts', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-  createLogger: vi.fn(() => ({
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  })),
-}));
-
-describe('Config Parser', () => {
-  let originalEnv: NodeJS.ProcessEnv;
+describe("Config Parser", () => {
+  let originalEnv: Record<string, string | undefined>;
 
   beforeEach(() => {
     originalEnv = { ...process.env };
@@ -312,8 +294,8 @@ instances:
     });
   });
 
-  describe('load', () => {
-    it('should load config from SHARRIFF_CONFIG environment variable', () => {
+  describe("load", () => {
+    it("should load config from SHARRIFF_CONFIG environment variable", () => {
       const yaml = `
 instances:
   radarr:
@@ -322,17 +304,22 @@ instances:
     api_key: "radarr-key"
 `;
 
-      process.env['SHARRIFF_CONFIG'] = yaml;
-      delete process.env['SHARRIFF_CONFIG_FILE'];
+      process.env["SHARRIFF_CONFIG"] = yaml;
+      delete process.env["SHARRIFF_CONFIG_FILE"];
 
-      const config = loadConfig();
+      const readStub = stub(Deno, "readTextFileSync", () => "");
+      try {
+        const config = loadConfig();
 
-      expect(config.instances.radarr).toBeDefined();
-      expect(config.instances.radarr.host).toBe('http://radarr:7878');
-      expect(readFileSync).not.toHaveBeenCalled();
+        expect(config.instances.radarr).toBeDefined();
+        expect(config.instances.radarr.host).toBe("http://radarr:7878");
+        expect(readStub.calls.length).toBe(0);
+      } finally {
+        readStub.restore();
+      }
     });
 
-    it('should prioritize SHARRIFF_CONFIG over SHARRIFF_CONFIG_FILE', () => {
+    it("should prioritize SHARRIFF_CONFIG over SHARRIFF_CONFIG_FILE", () => {
       const envYaml = `
 instances:
   radarr:
@@ -349,18 +336,22 @@ instances:
     api_key: "file-key"
 `;
 
-      process.env['SHARRIFF_CONFIG'] = envYaml;
-      process.env['SHARRIFF_CONFIG_FILE'] = '/path/to/config.yaml';
-      vi.mocked(readFileSync).mockReturnValue(fileYaml);
+      process.env["SHARRIFF_CONFIG"] = envYaml;
+      process.env["SHARRIFF_CONFIG_FILE"] = "/path/to/config.yaml";
 
-      const config = loadConfig();
+      const readStub = stub(Deno, "readTextFileSync", () => fileYaml);
+      try {
+        const config = loadConfig();
 
-      expect(config.instances.radarr.host).toBe('http://env.radarr:7878');
-      expect(config.instances.radarr.api_key).toBe('env-key');
-      expect(readFileSync).not.toHaveBeenCalled();
+        expect(config.instances.radarr.host).toBe("http://env.radarr:7878");
+        expect(config.instances.radarr.api_key).toBe("env-key");
+        expect(readStub.calls.length).toBe(0);
+      } finally {
+        readStub.restore();
+      }
     });
 
-    it('should load config from SHARRIFF_CONFIG_FILE environment variable', () => {
+    it("should load config from SHARRIFF_CONFIG_FILE environment variable", () => {
       const yaml = `
 instances:
   sonarr:
@@ -369,54 +360,66 @@ instances:
     api_key: "sonarr-key"
 `;
 
-      delete process.env['SHARRIFF_CONFIG'];
-      process.env['SHARRIFF_CONFIG_FILE'] = '/path/to/config.yaml';
-      vi.mocked(readFileSync).mockReturnValue(yaml);
+      delete process.env["SHARRIFF_CONFIG"];
+      process.env["SHARRIFF_CONFIG_FILE"] = "/path/to/config.yaml";
 
-      const config = loadConfig();
+      const readStub = stub(Deno, "readTextFileSync", () => yaml);
+      try {
+        const config = loadConfig();
 
-      expect(config.instances.sonarr).toBeDefined();
-      expect(config.instances.sonarr.host).toBe('http://sonarr:8989');
-      expect(readFileSync).toHaveBeenCalledWith('/path/to/config.yaml', 'utf-8');
+        expect(config.instances.sonarr).toBeDefined();
+        expect(config.instances.sonarr.host).toBe("http://sonarr:8989");
+        expect(readStub.calls[0].args[0]).toBe("/path/to/config.yaml");
+      } finally {
+        readStub.restore();
+      }
     });
 
-    it('should throw error when neither environment variable is set', () => {
-      delete process.env['SHARRIFF_CONFIG'];
-      delete process.env['SHARRIFF_CONFIG_FILE'];
+    it("should throw error when neither environment variable is set", () => {
+      delete process.env["SHARRIFF_CONFIG"];
+      delete process.env["SHARRIFF_CONFIG_FILE"];
 
       expect(() => loadConfig()).toThrow(
-        'Either SHARRIFF_CONFIG or SHARRIFF_CONFIG_FILE environment variable must be set'
+        "Either SHARRIFF_CONFIG or SHARRIFF_CONFIG_FILE environment variable must be set",
       );
     });
 
-    it('should throw error when file cannot be read', () => {
-      delete process.env['SHARRIFF_CONFIG'];
-      process.env['SHARRIFF_CONFIG_FILE'] = '/nonexistent/config.yaml';
-      vi.mocked(readFileSync).mockImplementation(() => {
-        throw new Error('ENOENT: no such file or directory');
+    it("should throw error when file cannot be read", () => {
+      delete process.env["SHARRIFF_CONFIG"];
+      process.env["SHARRIFF_CONFIG_FILE"] = "/nonexistent/config.yaml";
+
+      const readStub = stub(Deno, "readTextFileSync", () => {
+        throw new Error("ENOENT: no such file or directory");
       });
-
-      expect(() => loadConfig()).toThrow(
-        "Failed to read configuration file '/nonexistent/config.yaml': ENOENT: no such file or directory"
-      );
+      try {
+        expect(() => loadConfig()).toThrow(
+          "Failed to read configuration file '/nonexistent/config.yaml': ENOENT: no such file or directory",
+        );
+      } finally {
+        readStub.restore();
+      }
     });
 
-    it('should throw error for invalid YAML in file', () => {
-      delete process.env['SHARRIFF_CONFIG'];
-      process.env['SHARRIFF_CONFIG_FILE'] = '/path/to/config.yaml';
-      vi.mocked(readFileSync).mockReturnValue('invalid: yaml: [[[');
+    it("should throw error for invalid YAML in file", () => {
+      delete process.env["SHARRIFF_CONFIG"];
+      process.env["SHARRIFF_CONFIG_FILE"] = "/path/to/config.yaml";
 
-      expect(() => loadConfig()).toThrow('Failed to parse YAML');
+      const readStub = stub(Deno, "readTextFileSync", () => "invalid: yaml: [[[");
+      try {
+        expect(() => loadConfig()).toThrow("Failed to parse YAML");
+      } finally {
+        readStub.restore();
+      }
     });
 
-    it('should throw error for invalid YAML in environment variable', () => {
-      process.env['SHARRIFF_CONFIG'] = 'invalid: yaml: [[[';
-      delete process.env['SHARRIFF_CONFIG_FILE'];
+    it("should throw error for invalid YAML in environment variable", () => {
+      process.env["SHARRIFF_CONFIG"] = "invalid: yaml: [[[";
+      delete process.env["SHARRIFF_CONFIG_FILE"];
 
-      expect(() => loadConfig()).toThrow('Failed to parse YAML');
+      expect(() => loadConfig()).toThrow("Failed to parse YAML");
     });
 
-    it('should throw validation error for empty instances', () => {
+    it("should throw validation error for empty instances", () => {
       const yaml = `
 global:
   interval: 3600
@@ -424,10 +427,14 @@ global:
 instances: {}
 `;
 
-      process.env['SHARRIFF_CONFIG_FILE'] = '/path/to/config.yaml';
-      vi.mocked(readFileSync).mockReturnValue(yaml);
+      process.env["SHARRIFF_CONFIG_FILE"] = "/path/to/config.yaml";
 
-      expect(() => loadConfig()).toThrow('At least one instance must be defined');
+      const readStub = stub(Deno, "readTextFileSync", () => yaml);
+      try {
+        expect(() => loadConfig()).toThrow("At least one instance must be defined");
+      } finally {
+        readStub.restore();
+      }
     });
   });
 
