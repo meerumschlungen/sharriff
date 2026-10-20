@@ -11,6 +11,7 @@ export default defineConfig({
       'tests/logger.test.ts',
       'tests/config-parser.test.ts',
       'tests/http-client.test.ts',
+      'tests/arr-client.test.ts',
       '**/node_modules/**',
       '**/dist/**',
     ],
