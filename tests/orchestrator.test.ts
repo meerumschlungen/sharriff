@@ -2,14 +2,14 @@
  * Tests for Orchestrator
  */
 
-import { beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
 import { mockSessionAsync, stub } from "@std/testing/mock";
 import { FakeTime } from "@std/testing/time";
-import { Orchestrator } from "../src/orchestrator/Orchestrator.ts";
+import { beforeEach, describe, it } from "node:test";
 import type { ArrClient } from "../src/clients/ArrClient.ts";
-import type { GlobalSettings } from "../src/types.ts";
 import { logger } from "../src/logger.ts";
+import { Orchestrator } from "../src/orchestrator/Orchestrator.ts";
+import type { GlobalSettings } from "../src/types.ts";
 
 // Mock logger to capture log calls (stub logger.child to intercept createLogger)
 const mockLogger = {

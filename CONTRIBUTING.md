@@ -172,8 +172,8 @@ deno task test
 # Coverage report
 deno task test:coverage
 
-# Generate LCOV coverage report
-deno task coverage:report
+# Check coverage meets the 90% threshold
+deno task coverage:check
 ```
 
 ## Code Style

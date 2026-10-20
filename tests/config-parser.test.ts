@@ -2,9 +2,9 @@
  * Tests for configuration parser
  */
 
-import { afterEach, beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
 import { stub } from "@std/testing/mock";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { loadConfig, parseConfig } from "../src/config/ConfigParser.ts";
 
 describe("Config Parser", () => {

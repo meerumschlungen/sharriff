@@ -2,8 +2,8 @@
  * Tests for logger module
  */
 
-import { describe, it } from "node:test";
 import { expect } from "@std/expect";
+import { describe, it } from "node:test";
 import { createLogger, getLoggerOptions, logger } from "../src/logger.ts";
 
 describe("Logger", () => {

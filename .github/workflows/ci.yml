@@ -48,24 +48,11 @@ jobs:
         if: github.event_name != 'pull_request'
         run: deno task test
 
-      - name: Generate coverage
+      - name: Check coverage threshold
         if: github.event_name == 'pull_request'
         run: |
           deno task test:coverage
-          deno task coverage:report
-
-      - name: Setup LCOV
-        if: github.event_name == 'pull_request'
-        uses: hrishikesh-kadam/setup-lcov@9c4c3fa1c712097933f8772c19b2d1f6d182f2d5 # v1
-
-      - name: Report coverage
-        if: github.event_name == 'pull_request'
-        uses: zgosalvez/github-actions-report-lcov@eda775f552bfb2bffbdedea26f19dfb8c24a1648 # v4
-        with:
-          coverage-files: coverage.lcov
-          minimum-coverage: 90
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true
+          deno task coverage:check
 
   docker:
     needs: test

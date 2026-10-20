@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
 import { expect } from "@std/expect";
+import { describe, it } from "node:test";
 import { Mutex } from "../src/utils/mutex.ts";
 
 describe("Mutex", () => {

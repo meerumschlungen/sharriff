@@ -22,7 +22,7 @@
     "start": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
     "test": "deno test --allow-env --allow-read --allow-sys",
     "test:coverage": "deno test --allow-env --allow-read --allow-sys --coverage",
-    "coverage:report": "deno coverage --lcov --output=coverage.lcov",
+    "coverage:check": "deno coverage --threshold=90 coverage/",
     "type-check": "deno check src/index.ts",
     "lint": "deno lint",
     "lint:fix": "deno lint --fix",

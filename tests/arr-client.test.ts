@@ -2,15 +2,15 @@
  * Tests for ArrClient sort parameters and integration methods
  */
 
-import { EventEmitter } from "node:events";
-import { afterEach, beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
 import { assertSpyCalls, mockSessionAsync, resolvesNext, stub } from "@std/testing/mock";
 import { FakeTime } from "@std/testing/time";
+import { EventEmitter } from "node:events";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { ArrClient } from "../src/clients/ArrClient.ts";
+import { logger } from "../src/logger.ts";
 import type { GlobalSettings, MediaItem } from "../src/types.ts";
 import { Mutex } from "../src/utils/mutex.ts";
-import { logger } from "../src/logger.ts";
 
 // Mock logger to capture log calls (stub logger.child to intercept createLogger)
 const mockLogger = {

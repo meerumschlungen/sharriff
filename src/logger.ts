@@ -4,8 +4,8 @@
  * - Production mode: JSON structured logs
  */
 
-import pino from "pino";
 import type { LoggerOptions } from "pino";
+import pino from "pino";
 
 const isDevelopment = process.env["NODE_ENV"] !== "production";
 const logLevel = process.env["LOG_LEVEL"] ?? (isDevelopment ? "debug" : "info");

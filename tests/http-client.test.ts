@@ -2,11 +2,11 @@
  * Tests for HttpClient retry logic and error handling
  */
 
-import { EventEmitter } from "node:events";
-import { afterEach, beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
 import { assertSpyCalls, resolvesNext, stub } from "@std/testing/mock";
 import { FakeTime } from "@std/testing/time";
+import { EventEmitter } from "node:events";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from "../src/http/HttpClient.ts";
 import { logger } from "../src/logger.ts";
 
@@ -172,8 +172,10 @@ describe("HttpClient", { concurrency: false }, () => {
   });
 
   it("should fail after exhausting network error retries", async () => {
-    using fetchStub = stub(globalThis, "fetch", () =>
-      Promise.reject(new TypeError("fetch failed"))
+    using fetchStub = stub(
+      globalThis,
+      "fetch",
+      () => Promise.reject(new TypeError("fetch failed")),
     );
 
     const promise = httpClient.get("/api/v3/system/status");

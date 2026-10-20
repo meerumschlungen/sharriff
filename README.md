@@ -325,8 +325,8 @@ deno task test
 # Run tests with coverage
 deno task test:coverage
 
-# Generate LCOV coverage report
-deno task coverage:report
+# Check coverage meets the 90% threshold
+deno task coverage:check
 
 # Run the full check pipeline (type-check, lint, format, tests)
 deno task check

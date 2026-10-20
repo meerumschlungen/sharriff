@@ -2,10 +2,10 @@
  * Tests for shutdown utilities
  */
 
-import { EventEmitter } from "node:events";
-import { afterEach, beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
 import { FakeTime } from "@std/testing/time";
+import { EventEmitter } from "node:events";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { interruptibleSleep } from "../src/utils/shutdown.ts";
 
 describe("Shutdown utilities", () => {
