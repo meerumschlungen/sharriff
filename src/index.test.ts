@@ -1,3 +1,5 @@
+// deno-lint-ignore-file require-await
+
 /**
  * Tests for main application entry point
  */
@@ -5,9 +7,9 @@
 import { expect } from "@std/expect";
 import { mockSessionAsync, stub } from "@std/testing/mock";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { main } from "../src/index.ts";
-import { logger } from "../src/logger.ts";
-import type { Config } from "../src/types.ts";
+import { main } from "./index.ts";
+import { logger } from "./logger.ts";
+import type { Config } from "./types.ts";
 
 // Mock logger to capture log calls (stub logger.child to intercept createLogger)
 const mockLogger = {

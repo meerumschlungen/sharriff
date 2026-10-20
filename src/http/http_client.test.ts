@@ -7,8 +7,8 @@ import { assertSpyCalls, resolvesNext, stub } from "@std/testing/mock";
 import { FakeTime } from "@std/testing/time";
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from "../src/http/HttpClient.ts";
-import { logger } from "../src/logger.ts";
+import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from "./http_client.ts";
+import { logger } from "../logger.ts";
 
 // Mock logger to capture log calls (stub logger.child to intercept createLogger)
 const mockLogger = {

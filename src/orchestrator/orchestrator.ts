@@ -3,7 +3,7 @@
  */
 
 import { EventEmitter } from "node:events";
-import type { ArrClient } from "../clients/ArrClient.ts";
+import type { ArrClient } from "../clients/arr_client.ts";
 import { logger } from "../logger.ts";
 import type { GlobalSettings } from "../types.ts";
 import { Mutex } from "../utils/mutex.ts";

@@ -344,12 +344,13 @@ The test suite provides comprehensive coverage across all components:
 - ✅ Sort parameter mapping for all search orders
 - ✅ Logger environment variable handling
 
-**Current coverage: 86.91% overall** (110 tests)
+**Current coverage: 92.2% branches / 97.9% functions / 98.4% lines** (235 test steps)
 
-- Clients: 91.12% (ArrClient 97.77%, concrete clients)
-- Configuration parser: 96.55%
-- HTTP client: 96.29%
-- Orchestrator: 68.42%
+- Clients (ArrClient): 92.1% branches / 100% functions / 98.4% lines
+- Configuration parser: 89.3% branches / 100% functions / 97.8% lines
+- HTTP client: 90.6% branches / 100% functions / 98.4% lines
+- Orchestrator: 98.6% branches / 90% functions / 98.3% lines
+- Logger: 80% branches / 100% functions / 100% lines
 
 ## Contributing
 

@@ -1,3 +1,5 @@
+// deno-lint-ignore-file no-explicit-any require-await
+
 /**
  * Tests for Orchestrator
  */
@@ -6,10 +8,10 @@ import { expect } from "@std/expect";
 import { mockSessionAsync, stub } from "@std/testing/mock";
 import { FakeTime } from "@std/testing/time";
 import { beforeEach, describe, it } from "node:test";
-import type { ArrClient } from "../src/clients/ArrClient.ts";
-import { logger } from "../src/logger.ts";
-import { Orchestrator } from "../src/orchestrator/Orchestrator.ts";
-import type { GlobalSettings } from "../src/types.ts";
+import type { ArrClient } from "../clients/arr_client.ts";
+import { logger } from "../logger.ts";
+import { Orchestrator } from "./orchestrator.ts";
+import type { GlobalSettings } from "../types.ts";
 
 // Mock logger to capture log calls (stub logger.child to intercept createLogger)
 const mockLogger = {

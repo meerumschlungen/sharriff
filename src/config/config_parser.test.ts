@@ -5,7 +5,7 @@
 import { expect } from "@std/expect";
 import { stub } from "@std/testing/mock";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { loadConfig, parseConfig } from "../src/config/ConfigParser.ts";
+import { loadConfig, parseConfig } from "./config_parser.ts";
 
 describe("Config Parser", () => {
   let originalEnv: Record<string, string | undefined>;
