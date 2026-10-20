@@ -5,7 +5,7 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
-import { assertSpyCalls, mockSession, resolvesNext, stub } from "@std/testing/mock";
+import { assertSpyCalls, mockSessionAsync, resolvesNext, stub } from "@std/testing/mock";
 import { FakeTime } from "@std/testing/time";
 import { ArrClient } from "../src/clients/ArrClient.ts";
 import type { GlobalSettings, MediaItem } from "../src/types.ts";
@@ -108,27 +108,27 @@ describe("ArrClient metadata configuration", { concurrency: false }, () => {
       });
 
       it("should execute triggerMissingSearches without errors", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           stub(client as any, "fetchWantedItems", async () => ({ records: [] }));
           stub(client as any, "triggerSearchesWithStagger", async () => undefined);
 
           await expect(client.triggerMissingSearches(0)).resolves.toBe(0);
-        });
+        })();
       });
 
       it("should execute triggerCutoffSearches without errors", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           stub(client as any, "fetchWantedItems", async () => ({ records: [] }));
           stub(client as any, "triggerSearchesWithStagger", async () => undefined);
 
           await expect(client.triggerCutoffSearches(0)).resolves.toBe(0);
-        });
+        })();
       });
 
       it("should handle missing items with batch limit", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const mockRecords = [
             { id: 1, title: `${metadata.mediaSingular} 1` },
@@ -137,8 +137,10 @@ describe("ArrClient metadata configuration", { concurrency: false }, () => {
           const fetchStub = stub(client as any, "fetchWantedItems", async () => ({
             records: mockRecords,
           }));
-          const staggerStub = stub(client as any, "triggerSearchesWithStagger", async () =>
-            undefined
+          const staggerStub = stub(
+            client as any,
+            "triggerSearchesWithStagger",
+            async () => undefined,
           );
 
           await client.triggerMissingSearches(2);
@@ -146,18 +148,20 @@ describe("ArrClient metadata configuration", { concurrency: false }, () => {
           // Now uses paged fetching with page=1, pageSize=100
           expect(fetchStub.calls[0].args).toEqual(["missing", { page: 1, pageSize: 100 }]);
           expect(staggerStub.calls[0].args).toEqual([mockRecords, undefined]);
-        });
+        })();
       });
 
       it("should handle cutoff items with batch limit", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const mockRecords = [{ id: 1, title: `${metadata.mediaSingular} 1` }];
           const fetchStub = stub(client as any, "fetchWantedItems", async () => ({
             records: mockRecords,
           }));
-          const staggerStub = stub(client as any, "triggerSearchesWithStagger", async () =>
-            undefined
+          const staggerStub = stub(
+            client as any,
+            "triggerSearchesWithStagger",
+            async () => undefined,
           );
 
           await client.triggerCutoffSearches(1);
@@ -165,39 +169,43 @@ describe("ArrClient metadata configuration", { concurrency: false }, () => {
           // Now uses paged fetching with page=1, pageSize=100
           expect(fetchStub.calls[0].args).toEqual(["cutoff", { page: 1, pageSize: 100 }]);
           expect(staggerStub.calls[0].args).toEqual([mockRecords, undefined]);
-        });
+        })();
       });
 
       it("should handle no missing items found", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           stub(client as any, "fetchWantedItems", async () => ({ records: [] }));
-          const staggerStub = stub(client as any, "triggerSearchesWithStagger", async () =>
-            undefined
+          const staggerStub = stub(
+            client as any,
+            "triggerSearchesWithStagger",
+            async () => undefined,
           );
 
           await client.triggerMissingSearches(10);
 
           assertSpyCalls(staggerStub, 0);
-        });
+        })();
       });
 
       it("should handle no cutoff items found", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           stub(client as any, "fetchWantedItems", async () => ({ records: [] }));
-          const staggerStub = stub(client as any, "triggerSearchesWithStagger", async () =>
-            undefined
+          const staggerStub = stub(
+            client as any,
+            "triggerSearchesWithStagger",
+            async () => undefined,
           );
 
           await client.triggerCutoffSearches(10);
 
           assertSpyCalls(staggerStub, 0);
-        });
+        })();
       });
 
       it("should handle unlimited batch size (-1)", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const mockRecords = [
             { id: 1, title: `${metadata.mediaSingular} 1` },
@@ -206,8 +214,10 @@ describe("ArrClient metadata configuration", { concurrency: false }, () => {
           const fetchStub = stub(client as any, "fetchWantedItems", async () => ({
             records: mockRecords,
           }));
-          const staggerStub = stub(client as any, "triggerSearchesWithStagger", async () =>
-            undefined
+          const staggerStub = stub(
+            client as any,
+            "triggerSearchesWithStagger",
+            async () => undefined,
           );
 
           await client.triggerMissingSearches(-1);
@@ -215,7 +225,7 @@ describe("ArrClient metadata configuration", { concurrency: false }, () => {
           // Now uses paged fetching with page=1, pageSize=100
           expect(fetchStub.calls[0].args).toEqual(["missing", { page: 1, pageSize: 100 }]);
           expect(staggerStub.calls[0].args).toEqual([mockRecords, undefined]);
-        });
+        })();
       });
     });
   }
@@ -406,7 +416,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
 
   describe("initialize", () => {
     it("should connect and verify API version", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const http = { get: (_url: string) => Promise.resolve({}) };
         const getStub = stub(http, "get", async () => ({
@@ -418,11 +428,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         await client.initialize();
 
         expect(getStub.calls[0].args[0]).toBe("/api/v3/system/status");
-      });
+      })();
     });
 
     it("should handle missing appName in status response", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const http = { get: (_url: string) => Promise.resolve({}) };
         const getStub = stub(http, "get", async () => ({
@@ -433,11 +443,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         await client.initialize();
 
         expect(getStub.calls[0].args[0]).toBe("/api/v3/system/status");
-      });
+      })();
     });
 
     it("should log health check in dry run mode", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const dryRunSettings: GlobalSettings = {
           interval: 3600,
@@ -467,13 +477,13 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         await dryRunClient.initialize();
 
         expect(getStub.calls[0].args[0]).toBe("/api/v3/system/status");
-      });
+      })();
     });
   });
 
   describe("fetchWantedItems", () => {
     it("should get missing items with sort params", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const mockResponse = {
           records: [
@@ -500,11 +510,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             page: 1,
           },
         ]);
-      });
+      })();
     });
 
     it("should get cutoff items without extra params", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const mockResponse = {
           records: [{ id: 1, title: "Movie 1" }],
@@ -524,13 +534,13 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             sortDirection: "ascending",
           },
         ]);
-      });
+      })();
     });
   });
 
   describe("sendCommand", () => {
     it("should execute command with params", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const http = { post: (_url: string) => Promise.resolve({}) };
         const postStub = stub(http, "post", async () => ({
@@ -555,11 +565,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             movieIds: [1, 2, 3],
           },
         ]);
-      });
+      })();
     });
 
     it("should execute command without params", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const http = { post: (_url: string) => Promise.resolve({}) };
         const postStub = stub(http, "post", async () => ({
@@ -576,11 +586,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             name: "RefreshMonitoredDownloads",
           },
         ]);
-      });
+      })();
     });
 
     it("should return dry-run response in dry run mode", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const dryRunSettings: GlobalSettings = {
           interval: 3600,
@@ -613,13 +623,13 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         });
 
         assertSpyCalls(postStub, 0);
-      });
+      })();
     });
   });
 
   describe("triggerSearchesWithStagger", () => {
     it("should search items with stagger delay", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const items: MediaItem[] = [
           { id: 1, title: "Movie 1" },
@@ -638,7 +648,9 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         );
 
         // Fast-forward through all timers
-        await time.runAllAsync();
+        for (let i = 0; i < 10; i++) {
+          await time.tickAsync(1000);
+        }
         await promise;
 
         // Should be called once for each item
@@ -656,11 +668,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           "/api/v3/command",
           { name: "MoviesSearch", movieIds: [3] },
         ]);
-      });
+      })();
     });
 
     it("should not stagger after last item", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const items: MediaItem[] = [
           { id: 1, title: "Movie 1" },
@@ -677,17 +689,19 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           "movieIds",
         );
 
-        await time.runAllAsync();
+        for (let i = 0; i < 10; i++) {
+          await time.tickAsync(1000);
+        }
         await promise;
 
         // Verify only one stagger delay (2 seconds between item 1 and 2)
         // No delay after item 2
         assertSpyCalls(postStub, 2);
-      });
+      })();
     });
 
     it("should skip stagger when interval is 0", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const noStaggerSettings: GlobalSettings = {
           interval: 3600,
@@ -723,11 +737,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         );
 
         assertSpyCalls(postStub, 2);
-      });
+      })();
     });
 
     it("should handle empty items array", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const http = { post: (_url: string) => Promise.resolve({}) };
         const postStub = stub(http, "post", async () => ({}));
@@ -738,11 +752,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         await (client as any).triggerSearchesWithStagger(items, "MoviesSearch", "movieIds");
 
         assertSpyCalls(postStub, 0);
-      });
+      })();
     });
 
     it("should handle single item (no stagger needed)", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const items: MediaItem[] = [{ id: 1, title: "Movie 1" }];
 
@@ -757,11 +771,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           "/api/v3/command",
           { name: "MoviesSearch", movieIds: [1] },
         ]);
-      });
+      })();
     });
 
     it("should skip undefined/null items in the array", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const items: (MediaItem | undefined)[] = [
           { id: 1, title: "Movie 1" },
@@ -779,7 +793,9 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           "movieIds",
         );
 
-        await time.runAllAsync();
+        for (let i = 0; i < 10; i++) {
+          await time.tickAsync(1000);
+        }
         await promise;
 
         // Should only call for the two valid items, skipping the undefined one
@@ -792,13 +808,13 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           "/api/v3/command",
           { name: "MoviesSearch", movieIds: [2] },
         ]);
-      });
+      })();
     });
   });
 
   describe("shutdown resources", () => {
     it("should set shutdown resources (mutex and emitter)", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const settings = createSettings("last_searched_ascending");
         const client = new ArrClient(
@@ -819,11 +835,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         // Verify internal state (accessing private fields for testing)
         expect((client as any).workMutex).toBe(mockMutex);
         expect((client as any).shutdownEmitter).toBe(mockEmitter);
-      });
+      })();
     });
 
     it("should use interruptible sleep during stagger when shutdown resources are set", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const settings = createSettings("last_searched_ascending");
         settings.stagger_interval_seconds = 2;
@@ -857,7 +873,9 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         const promise = (client as any).triggerSearchesWithStagger(items);
 
         // Fast-forward through all timers to execute stagger delays
-        await time.runAllAsync();
+        for (let i = 0; i < 10; i++) {
+          await time.tickAsync(1000);
+        }
         await promise;
 
         // Should be called once for each item
@@ -867,7 +885,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
         expect(triggerStub.calls[0].args).toEqual([items[0], undefined]);
         expect(triggerStub.calls[1].args).toEqual([items[1], undefined]);
         expect(triggerStub.calls[2].args).toEqual([items[2], undefined]);
-      });
+      })();
     });
   });
 
@@ -970,7 +988,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
 
     describe("fetchWantedItemsWithFiltering pagination", () => {
       it("should fetch single page when enough items found", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const items = Array.from({ length: 100 }, (_, i) => ({
             id: i + 1,
@@ -994,11 +1012,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             page: 1,
             pageSize: 100,
           });
-        });
+        })();
       });
 
       it("should fetch multiple pages until batch size reached", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           // Create client with retry_interval_days > 0 to enable filtering
           const settings = createSettings("last_searched_ascending");
@@ -1040,11 +1058,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           assertSpyCalls(getStub, 2);
           expect(getStub.calls[0].args[1]).toMatchObject({ page: 1 });
           expect(getStub.calls[1].args[1]).toMatchObject({ page: 2 });
-        });
+        })();
       });
 
       it("should stop early when enough filtered items found", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const page1Items = Array.from({ length: 100 }, (_, i) => ({
             id: i + 1,
@@ -1064,11 +1082,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
 
           expect(result).toHaveLength(50);
           assertSpyCalls(getStub, 1); // Only fetched 1 page, stopped early
-        });
+        })();
       });
 
       it("should fetch all pages when unlimited batch size (-1)", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const page1Items = Array.from({ length: 100 }, (_, i) => ({
             id: i + 1,
@@ -1101,11 +1119,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
 
           expect(result).toHaveLength(130);
           assertSpyCalls(getStub, 2);
-        });
+        })();
       });
 
       it("should return partial batch when not enough items available", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const items = Array.from({ length: 10 }, (_, i) => ({
             id: i + 1,
@@ -1124,11 +1142,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           );
 
           expect(result).toHaveLength(10); // Only 10 available, not 50
-        });
+        })();
       });
 
       it("should bypass filtering when retry_interval_days = 0", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const items = Array.from({ length: 50 }, (_, i) => ({
             id: i + 1,
@@ -1138,7 +1156,13 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
 
           const settings = createSettings("last_searched_ascending");
           settings.retry_interval_days = 0; // Disabled
-          const noFilterClient = new ArrClient("radarr", "test", "http://localhost", "key", settings);
+          const noFilterClient = new ArrClient(
+            "radarr",
+            "test",
+            "http://localhost",
+            "key",
+            settings,
+          );
 
           const http = { get: (_url: string) => Promise.resolve({}) };
           const getStub = stub(http, "get", async () => ({ records: items, pageSize: 50 }));
@@ -1151,11 +1175,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           );
 
           expect(result).toHaveLength(50); // All included despite recent timestamps
-        });
+        })();
       });
 
       it("should handle empty response", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const http = { get: (_url: string) => Promise.resolve({}) };
           const getStub = stub(http, "get", async () => ({ records: [] }));
@@ -1169,11 +1193,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
 
           expect(result).toHaveLength(0);
           assertSpyCalls(getStub, 1);
-        });
+        })();
       });
 
       it("should handle mixed eligible and ineligible items", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           // Create client with retry_interval_days > 0 to enable filtering
           const settings = createSettings("last_searched_ascending");
@@ -1198,11 +1222,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           );
 
           expect(result).toHaveLength(10); // Half are eligible
-        });
+        })();
       });
 
       it("should continue fetching when first pages have no eligible items", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           // Create client with retry_interval_days > 0 to enable filtering
           const settings = createSettings("last_searched_ascending");
@@ -1244,11 +1268,11 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
 
           expect(result).toHaveLength(20);
           assertSpyCalls(getStub, 3);
-        });
+        })();
       });
 
       it("should work with cutoff batch type", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const items = Array.from({ length: 30 }, (_, i) => ({
             id: i + 1,
@@ -1271,13 +1295,13 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             page: 1,
             pageSize: 100,
           });
-        });
+        })();
       });
     });
 
     describe("processBatch integration with filtering", () => {
       it("should use paged fetching with filtering when retry_interval_days > 0", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const settings = createSettings("last_searched_ascending");
           settings.retry_interval_days = 7;
@@ -1303,15 +1327,21 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             page: 1,
             pageSize: 100,
           });
-        });
+        })();
       });
 
       it("should use paged fetching even when retry_interval_days = 0", async () => {
-        await mockSession(async () => {
+        await mockSessionAsync(async () => {
           stub(logger, "child", () => mockLogger as never);
           const settings = createSettings("last_searched_ascending");
           settings.retry_interval_days = 0;
-          const noFilterClient = new ArrClient("radarr", "test", "http://localhost", "key", settings);
+          const noFilterClient = new ArrClient(
+            "radarr",
+            "test",
+            "http://localhost",
+            "key",
+            settings,
+          );
 
           const items = Array.from({ length: 20 }, (_, i) => ({
             id: i + 1,
@@ -1333,7 +1363,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             page: 1,
             pageSize: 100,
           });
-        });
+        })();
       });
     });
   });

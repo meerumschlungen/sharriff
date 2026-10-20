@@ -2,9 +2,9 @@
  * Tests for Orchestrator
  */
 
-import { describe, it, beforeEach } from "node:test";
+import { beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
-import { mockSession, stub } from "@std/testing/mock";
+import { mockSessionAsync, stub } from "@std/testing/mock";
 import { Orchestrator } from "../src/orchestrator/Orchestrator.ts";
 import type { ArrClient } from "../src/clients/ArrClient.ts";
 import type { GlobalSettings } from "../src/types.ts";
@@ -70,7 +70,7 @@ describe("Orchestrator", { concurrency: false }, () => {
 
   describe("batch size calculation", () => {
     it("should distribute batch sizes proportionally by weight", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 2.0) as unknown as ArrClient;
@@ -97,11 +97,11 @@ describe("Orchestrator", { concurrency: false }, () => {
 
         expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
         expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
-      });
+      })();
     });
 
     it("should ensure minimum batch size of 1 for positive global batch", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -124,11 +124,11 @@ describe("Orchestrator", { concurrency: false }, () => {
         expect(
           (client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0],
         ).toBeGreaterThanOrEqual(1);
-      });
+      })();
     });
 
     it("should handle batch size 0 (disabled)", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -149,11 +149,11 @@ describe("Orchestrator", { concurrency: false }, () => {
         // Should not call search methods when batch size is 0
         expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(0);
         expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(0);
-      });
+      })();
     });
 
     it("should handle batch size -1 (unlimited)", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -174,11 +174,11 @@ describe("Orchestrator", { concurrency: false }, () => {
         // Should pass -1 to search methods
         expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(-1);
         expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(-1);
-      });
+      })();
     });
 
     it("should handle equal weights", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -202,11 +202,11 @@ describe("Orchestrator", { concurrency: false }, () => {
         expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
         expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
         expect((client3 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
-      });
+      })();
     });
 
     it("should call both missing and cutoff searches independently", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -229,11 +229,11 @@ describe("Orchestrator", { concurrency: false }, () => {
 
         expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(1);
         expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
-      });
+      })();
     });
 
     it("should trigger cutoff searches even when missing batch size is 0", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -257,11 +257,11 @@ describe("Orchestrator", { concurrency: false }, () => {
         // Cutoff should still be called (enabled)
         expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(1);
         expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
-      });
+      })();
     });
 
     it("should trigger missing searches even when cutoff batch size is 0", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -285,11 +285,11 @@ describe("Orchestrator", { concurrency: false }, () => {
 
         // Cutoff should not be called (disabled)
         expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(0);
-      });
+      })();
     });
 
     it("should handle fractional weight distribution with rounding", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.5) as unknown as ArrClient;
@@ -311,11 +311,11 @@ describe("Orchestrator", { concurrency: false }, () => {
         // Each should get 5 items (0.5 share of 10)
         expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
         expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
-      });
+      })();
     });
 
     it("should handle zero total weight by giving minimum batch size to all clients", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 0) as unknown as ArrClient;
@@ -340,7 +340,7 @@ describe("Orchestrator", { concurrency: false }, () => {
 
         expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
         expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
-      });
+      })();
     });
   });
 
@@ -364,7 +364,7 @@ describe("Orchestrator", { concurrency: false }, () => {
 
   describe("error recovery", () => {
     it("should continue processing other clients after one fails", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -392,11 +392,11 @@ describe("Orchestrator", { concurrency: false }, () => {
         // client2 should have been processed despite client1 failing
         expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
         expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
-      });
+      })();
     });
 
     it("should log error details when client fails", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const errorStub = stub(logger, "error");
         stub(process, "exit", () => undefined as never);
@@ -426,11 +426,11 @@ describe("Orchestrator", { concurrency: false }, () => {
           error: "API timeout",
         });
         expect(errorStub.calls[0].args[1]).toContain("Error during indexer triggers");
-      });
+      })();
     });
 
     it("should handle non-Error exceptions", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const errorStub = stub(logger, "error");
         stub(process, "exit", () => undefined as never);
@@ -459,7 +459,7 @@ describe("Orchestrator", { concurrency: false }, () => {
           error: "Something went wrong",
           stack: undefined,
         });
-      });
+      })();
     });
   });
 
@@ -476,7 +476,7 @@ describe("Orchestrator", { concurrency: false }, () => {
     });
 
     it("should skip clients after shutdown signal in same cycle", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
@@ -500,13 +500,13 @@ describe("Orchestrator", { concurrency: false }, () => {
 
         // Clients should be skipped due to shutdown
         // This verifies the shutdown check works
-      });
+      })();
     });
   });
 
   describe("cleanup", () => {
     it("should remove signal handlers when dispose is called", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
@@ -529,11 +529,11 @@ describe("Orchestrator", { concurrency: false }, () => {
         // Should remove both signal handlers
         expect(offStub.calls[0].args[0]).toBe("SIGINT");
         expect(offStub.calls[1].args[0]).toBe("SIGTERM");
-      });
+      })();
     });
 
     it("should handle dispose when signal handlers were not registered", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
@@ -556,7 +556,7 @@ describe("Orchestrator", { concurrency: false }, () => {
 
         // Should not call process.off since handlers were never registered
         expect(offStub.calls.length).toBe(0);
-      });
+      })();
     });
   });
 });

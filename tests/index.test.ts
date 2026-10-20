@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
-import { mockSession, stub } from "@std/testing/mock";
+import { mockSessionAsync, stub } from "@std/testing/mock";
 import { main } from "../src/index.ts";
 import type { Config } from "../src/types.ts";
 import { logger } from "../src/logger.ts";
@@ -39,7 +39,7 @@ describe("Main Application", { concurrency: false }, () => {
 
   describe("warnings", () => {
     it("should warn when random search order is configured", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const warnStub = stub(logger, "warn");
         stub(process, "exit", () => undefined as never);
@@ -75,13 +75,13 @@ describe("Main Application", { concurrency: false }, () => {
         expect(warnStub.calls[0].args[1]).toContain(
           "random search order is configured but not yet fully implemented",
         );
-      });
+      })();
     });
   });
 
   describe("error handling", () => {
     it("should exit with error when no enabled instances found", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const errorStub = stub(logger, "error");
         const exitStub = stub(process, "exit", () => undefined as never);
@@ -116,11 +116,11 @@ describe("Main Application", { concurrency: false }, () => {
           "No enabled instances found. Add at least one enabled instance to proceed.",
         );
         expect(exitStub.calls[0].args[0]).toBe(1);
-      });
+      })();
     });
 
     it("should exit with error when loadConfig throws", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const errorStub = stub(logger, "error");
         const exitStub = stub(process, "exit", () => undefined as never);
@@ -139,11 +139,11 @@ describe("Main Application", { concurrency: false }, () => {
           error: "Config file not found",
         });
         expect(exitStub.calls[0].args[0]).toBe(1);
-      });
+      })();
     });
 
     it("should exit with error when client initialization fails", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const errorStub = stub(logger, "error");
         const exitStub = stub(process, "exit", () => undefined as never);
@@ -185,13 +185,13 @@ describe("Main Application", { concurrency: false }, () => {
           error: "Connection failed",
         });
         expect(exitStub.calls[0].args[0]).toBe(1);
-      });
+      })();
     });
   });
 
   describe("client initialization", () => {
     it("should initialize enabled clients and skip disabled ones", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const debugStub = stub(logger, "debug");
         const infoStub = stub(logger, "info");
@@ -240,20 +240,22 @@ describe("Main Application", { concurrency: false }, () => {
 
         // Should log that sonarr is disabled
         expect(
-          debugStub.calls.some((c) => (c.args[0] as Record<string, unknown>)?.instance === "sonarr"),
+          debugStub.calls.some((c) =>
+            (c.args[0] as Record<string, unknown>)?.instance === "sonarr"
+          ),
         ).toBe(true);
 
         // Should log clients initialized successfully
         expect(
           infoStub.calls.some((c) => (c.args[0] as Record<string, unknown>)?.clientCount === 2),
         ).toBe(true);
-      });
+      })();
     });
   });
 
   describe("configuration logging", () => {
     it("should log configuration without API keys", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         const infoStub = stub(logger, "info");
         const debugStub = stub(logger, "debug");
@@ -315,13 +317,13 @@ describe("Main Application", { concurrency: false }, () => {
           JSON.stringify(call.args).includes("secret-key-should-not-appear")
         );
         expect(hasSecretKey).toBe(false);
-      });
+      })();
     });
   });
 
   describe("orchestrator", () => {
     it("should start orchestrator in one-shot mode when --once flag is present", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         process.argv = ["node", "index.js", "--once"];
@@ -361,11 +363,11 @@ describe("Main Application", { concurrency: false }, () => {
         });
 
         expect(started).toBe(true);
-      });
+      })();
     });
 
     it("should start orchestrator in daemon mode when --once flag is not present", async () => {
-      await mockSession(async () => {
+      await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);
         stub(process, "exit", () => undefined as never);
         process.argv = ["node", "index.js"];
@@ -405,7 +407,7 @@ describe("Main Application", { concurrency: false }, () => {
         });
 
         expect(started).toBe(true);
-      });
+      })();
     });
   });
 });
