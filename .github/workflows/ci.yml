@@ -50,11 +50,19 @@ jobs:
 
       - name: Generate coverage
         if: github.event_name == 'pull_request'
-        run: deno task test:coverage
+        run: |
+          deno task test:coverage
+          deno task coverage:report
 
       - name: Report coverage
         if: github.event_name == 'pull_request'
-        uses: davelosert/vitest-coverage-report-action@8f86cfb56ed6d5613ea8cdc5259f207fbfd51ece # v2.13.1
+        uses: zgosalvez/github-actions-report-lcov@v4
+        with:
+          coverage-files: coverage.lcov
+          minimum-coverage: 90
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
+          thresholds: '90,70'
 
   docker:
     needs: test

@@ -33,7 +33,7 @@ type(optional-scope): description
 feat: add retry logic for failed searches
 fix(http): handle timeout errors properly
 docs: update installation guide
-chore(deps): update vitest to v5
+chore(deps): update deno std to v1
 test: add coverage for mutex edge cases
 ```
 

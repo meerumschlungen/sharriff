@@ -316,20 +316,17 @@ TZ=UTC LOG_FORMAT=pretty SHARRIFF_CONFIG_FILE=config.yaml deno task start -- --o
 
 ## Testing
 
-Sharriff includes a comprehensive test suite using Vitest (run via Deno tasks):
+Sharriff includes a comprehensive test suite using Deno's native test runner:
 
 ```bash
 # Run all tests once
 deno task test
 
-# Run tests in watch mode
-deno task test:watch
-
-# Run tests with UI
-deno task test:ui
-
-# Run tests with coverage report
+# Run tests with coverage
 deno task test:coverage
+
+# Generate LCOV coverage report
+deno task coverage:report
 
 # Run the full check pipeline (type-check, lint, format, tests)
 deno task check

@@ -158,7 +158,7 @@ This triggers the automated release workflow:
 
 ### Writing Tests
 
-- Use Vitest for all tests
+- Use Deno's native test runner (`node:test` + `@std/expect` + `@std/testing/mock`)
 - Place tests in `tests/` directory
 - Name test files: `*.test.ts`
 - Aim for high coverage on critical paths
@@ -169,14 +169,11 @@ This triggers the automated release workflow:
 # Run all tests once
 deno task test
 
-# Watch mode (re-runs on file changes)
-deno task test:watch
-
 # Coverage report
 deno task test:coverage
 
-# Interactive UI
-deno task test:ui
+# Generate LCOV coverage report
+deno task coverage:report
 ```
 
 ## Code Style
@@ -192,7 +189,7 @@ The project uses:
 - **Deno lint** for code quality
 - **Deno fmt** for formatting
 - **Deno check** for type safety
-- **Vitest** for testing
+- **Deno test** for testing
 
 Run `deno task lint:fix` and `deno task format` to auto-fix most issues.
 
