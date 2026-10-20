@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { Mutex } from '../src/utils/mutex';
+import { describe, it } from "node:test";
+import { expect } from "@std/expect";
+import { Mutex } from "../src/utils/mutex.ts";
 
-describe('Mutex', () => {
-  describe('acquire and release', () => {
-    it('should acquire and release lock', async () => {
+describe("Mutex", () => {
+  describe("acquire and release", () => {
+    it("should acquire and release lock", async () => {
       const mutex = new Mutex();
 
       expect(mutex.isLocked()).toBe(false);
@@ -15,7 +16,7 @@ describe('Mutex', () => {
       expect(mutex.isLocked()).toBe(false);
     });
 
-    it('should queue multiple acquires', async () => {
+    it("should queue multiple acquires", async () => {
       const mutex = new Mutex();
       const order: number[] = [];
 
@@ -44,7 +45,7 @@ describe('Mutex', () => {
       expect(order).toEqual([1, 2, 3]);
     });
 
-    it('should handle concurrent operations correctly', async () => {
+    it("should handle concurrent operations correctly", async () => {
       const mutex = new Mutex();
       let counter = 0;
 
@@ -67,13 +68,13 @@ describe('Mutex', () => {
     });
   });
 
-  describe('waitForUnlock', () => {
-    it('should resolve immediately if not locked', async () => {
+  describe("waitForUnlock", () => {
+    it("should resolve immediately if not locked", async () => {
       const mutex = new Mutex();
       await expect(mutex.waitForUnlock()).resolves.toBeUndefined();
     });
 
-    it('should wait for lock to be released', async () => {
+    it("should wait for lock to be released", async () => {
       const mutex = new Mutex();
       const order: number[] = [];
 
@@ -95,7 +96,7 @@ describe('Mutex', () => {
       expect(order).toEqual([1, 3, 2]);
     });
 
-    it('should allow multiple waiters', async () => {
+    it("should allow multiple waiters", async () => {
       const mutex = new Mutex();
       const results: number[] = [];
 
@@ -116,8 +117,8 @@ describe('Mutex', () => {
     });
   });
 
-  describe('isLocked', () => {
-    it('should return correct lock status', async () => {
+  describe("isLocked", () => {
+    it("should return correct lock status", async () => {
       const mutex = new Mutex();
 
       expect(mutex.isLocked()).toBe(false);
@@ -130,8 +131,8 @@ describe('Mutex', () => {
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle release called multiple times safely', async () => {
+  describe("edge cases", () => {
+    it("should handle release called multiple times safely", async () => {
       const mutex = new Mutex();
       const release = await mutex.acquire();
 
@@ -141,7 +142,7 @@ describe('Mutex', () => {
       expect(mutex.isLocked()).toBe(false);
     });
 
-    it('should handle rapid acquire/release cycles', async () => {
+    it("should handle rapid acquire/release cycles", async () => {
       const mutex = new Mutex();
 
       for (let i = 0; i < 100; i++) {
