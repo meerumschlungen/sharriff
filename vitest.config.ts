@@ -12,6 +12,8 @@ export default defineConfig({
       'tests/config-parser.test.ts',
       'tests/http-client.test.ts',
       'tests/arr-client.test.ts',
+      'tests/index.test.ts',
+      'tests/orchestrator.test.ts',
       '**/node_modules/**',
       '**/dist/**',
     ],

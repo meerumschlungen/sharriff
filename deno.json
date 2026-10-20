@@ -23,7 +23,7 @@
   "tasks": {
     "dev": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
     "start": "deno run --allow-env --allow-read --allow-net --allow-sys --env-file=.env src/index.ts",
-    "test": "vitest run && deno test --allow-env --allow-read --allow-sys tests/mutex.test.ts tests/shutdown.test.ts tests/logger.test.ts tests/config-parser.test.ts tests/http-client.test.ts tests/arr-client.test.ts",
+    "test": "deno test --allow-env --allow-read --allow-sys",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
