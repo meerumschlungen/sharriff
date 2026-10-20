@@ -1,3 +1,5 @@
+// deno-lint-ignore-file no-explicit-any require-await
+
 /**
  * Tests for ArrClient sort parameters and integration methods
  */
@@ -7,10 +9,10 @@ import { assertSpyCalls, mockSessionAsync, resolvesNext, stub } from "@std/testi
 import { FakeTime } from "@std/testing/time";
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { ArrClient } from "../src/clients/ArrClient.ts";
-import { logger } from "../src/logger.ts";
-import type { GlobalSettings, MediaItem } from "../src/types.ts";
-import { Mutex } from "../src/utils/mutex.ts";
+import { ArrClient } from "./arr_client.ts";
+import { logger } from "../logger.ts";
+import type { GlobalSettings, MediaItem } from "../types.ts";
+import { Mutex } from "../utils/mutex.ts";
 
 // Mock logger to capture log calls (stub logger.child to intercept createLogger)
 const mockLogger = {
@@ -890,8 +892,6 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
   });
 
   describe("retry_interval_days filtering", () => {
-    const FIXED_NOW = new Date("2024-01-15T12:00:00.000Z");
-
     // Helper to create timestamps relative to now using fixed millisecond offsets
     function daysAgo(days: number): string {
       return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -1132,7 +1132,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           }));
 
           const http = { get: (_url: string) => Promise.resolve({}) };
-          const getStub = stub(http, "get", async () => ({ records: items, pageSize: 10 }));
+          const _getStub = stub(http, "get", async () => ({ records: items, pageSize: 10 }));
           (client as any).http = http;
 
           const result = await (client as any).fetchWantedItemsWithFiltering(
@@ -1165,7 +1165,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           );
 
           const http = { get: (_url: string) => Promise.resolve({}) };
-          const getStub = stub(http, "get", async () => ({ records: items, pageSize: 50 }));
+          const _getStub = stub(http, "get", async () => ({ records: items, pageSize: 50 }));
           (noFilterClient as any).http = http;
 
           const result = await (noFilterClient as any).fetchWantedItemsWithFiltering(
@@ -1212,7 +1212,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
           }));
 
           const http = { get: (_url: string) => Promise.resolve({}) };
-          const getStub = stub(http, "get", async () => ({ records: items, pageSize: 20 }));
+          const _getStub = stub(http, "get", async () => ({ records: items, pageSize: 20 }));
           (filterClient as any).http = http;
 
           const result = await (filterClient as any).fetchWantedItemsWithFiltering(
@@ -1318,7 +1318,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             post: (_url: string) => Promise.resolve({}),
           };
           const getStub = stub(http, "get", async () => ({ records: items, pageSize: 20 }));
-          const postStub = stub(http, "post", async () => ({ id: 123, name: "MoviesSearch" }));
+          const _postStub = stub(http, "post", async () => ({ id: 123, name: "MoviesSearch" }));
           (filterClient as any).http = http;
 
           await filterClient.triggerMissingSearches(20, "test-cycle");
@@ -1353,7 +1353,7 @@ describe("ArrClient integration methods", { concurrency: false }, () => {
             post: (_url: string) => Promise.resolve({}),
           };
           const getStub = stub(http, "get", async () => ({ records: items, pageSize: 20 }));
-          const postStub = stub(http, "post", async () => ({ id: 123, name: "MoviesSearch" }));
+          const _postStub = stub(http, "post", async () => ({ id: 123, name: "MoviesSearch" }));
           (noFilterClient as any).http = http;
 
           await noFilterClient.triggerMissingSearches(20, "test-cycle");

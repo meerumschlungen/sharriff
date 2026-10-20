@@ -1,6 +1,6 @@
 import { expect } from "@std/expect";
 import { describe, it } from "node:test";
-import { Mutex } from "../src/utils/mutex.ts";
+import { Mutex } from "./mutex.ts";
 
 describe("Mutex", () => {
   describe("acquire and release", () => {

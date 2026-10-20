@@ -3,10 +3,10 @@
  * Main entry point
  */
 
-import { ArrClient } from "./clients/ArrClient.ts";
-import { loadConfig } from "./config/ConfigParser.ts";
+import { ArrClient } from "./clients/arr_client.ts";
+import { loadConfig } from "./config/config_parser.ts";
 import { logger } from "./logger.ts";
-import { Orchestrator } from "./orchestrator/Orchestrator.ts";
+import { Orchestrator } from "./orchestrator/orchestrator.ts";
 import { DEFAULT_SEARCH_ORDER } from "./types.ts";
 
 // Log startup information

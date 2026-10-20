@@ -2,7 +2,7 @@
  * Configuration loader and validator
  */
 
-import { parse } from "yaml";
+import { parse } from "@std/yaml";
 import { z } from "zod";
 import { logger } from "../logger.ts";
 import type { Config } from "../types.ts";

@@ -4,7 +4,7 @@
 
 import type { EventEmitter } from "node:events";
 import type { Logger } from "pino";
-import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from "../http/HttpClient.ts";
+import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from "../http/http_client.ts";
 import { createLogger } from "../logger.ts";
 import type { ArrType, GlobalSettings, MediaItem } from "../types.ts";
 import { DEFAULT_SEARCH_ORDER } from "../types.ts";

@@ -159,7 +159,7 @@ This triggers the automated release workflow:
 ### Writing Tests
 
 - Use Deno's native test runner (`node:test` + `@std/expect` + `@std/testing/mock`)
-- Place tests in `tests/` directory
+- Place tests next to the code they test (colocated in `src/`)
 - Name test files: `*.test.ts`
 - Aim for high coverage on critical paths
 

@@ -4,7 +4,7 @@
 
 import { expect } from "@std/expect";
 import { describe, it } from "node:test";
-import { createLogger, getLoggerOptions, logger } from "../src/logger.ts";
+import { createLogger, getLoggerOptions, logger } from "./logger.ts";
 
 describe("Logger", () => {
   describe("logger singleton", () => {
