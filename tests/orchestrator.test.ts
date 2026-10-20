@@ -2,26 +2,22 @@
  * Tests for Orchestrator
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Orchestrator } from '../src/orchestrator/Orchestrator.ts';
-import type { ArrClient } from '../src/clients/ArrClient.ts';
-import type { GlobalSettings } from '../src/types.ts';
+import { expect } from "@std/expect";
+import { mockSessionAsync, stub } from "@std/testing/mock";
+import { FakeTime } from "@std/testing/time";
+import { beforeEach, describe, it } from "node:test";
+import type { ArrClient } from "../src/clients/ArrClient.ts";
+import { logger } from "../src/logger.ts";
+import { Orchestrator } from "../src/orchestrator/Orchestrator.ts";
+import type { GlobalSettings } from "../src/types.ts";
 
-// Mock logger
-vi.mock('../src/logger.ts', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-  createLogger: vi.fn(() => ({
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  })),
-}));
+// Mock logger to capture log calls (stub logger.child to intercept createLogger)
+const mockLogger = {
+  debug: (..._args: unknown[]) => {},
+  info: (..._args: unknown[]) => {},
+  warn: (..._args: unknown[]) => {},
+  error: (..._args: unknown[]) => {},
+};
 
 // Mock ArrClient
 class MockArrClient implements Partial<ArrClient> {
@@ -58,7 +54,7 @@ class MockArrClient implements Partial<ArrClient> {
   }
 }
 
-describe('Orchestrator', () => {
+describe("Orchestrator", { concurrency: false }, () => {
   let defaultSettings: GlobalSettings;
 
   beforeEach(() => {
@@ -67,505 +63,704 @@ describe('Orchestrator', () => {
       missing_batch_size: 20,
       upgrade_batch_size: 10,
       stagger_interval_seconds: 30,
-      search_order: 'last_searched_ascending',
+      search_order: "last_searched_ascending",
       retry_interval_days: 30,
       dry_run: false,
     };
   });
 
-  describe('batch size calculation', () => {
-    it('should distribute batch sizes proportionally by weight', async () => {
-      const client1 = new MockArrClient('radarr', 2.0) as unknown as ArrClient;
-      const client2 = new MockArrClient('sonarr', 1.0) as unknown as ArrClient;
+  describe("batch size calculation", () => {
+    it("should distribute batch sizes proportionally by weight", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 2.0) as unknown as ArrClient;
+        const client2 = new MockArrClient("sonarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 30,
-        upgrade_batch_size: 0, // disabled
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 30,
+          upgrade_batch_size: 0, // disabled
+        };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1, client2], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      // Mock process.exit to prevent actual exit
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
+        // Total weight = 3.0
+        // client1 (weight 2.0) should get 2/3 = 20 items
+        // client2 (weight 1.0) should get 1/3 = 10 items
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(20);
 
-      exitSpy.mockRestore();
-
-      // Total weight = 3.0
-      // client1 (weight 2.0) should get 2/3 = 20 items
-      // client2 (weight 1.0) should get 1/3 = 10 items
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(20);
-
-      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
-      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
+        expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+        expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
+      })();
     });
 
-    it('should ensure minimum batch size of 1 for positive global batch', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
-      const client2 = new MockArrClient('sonarr', 10.0) as unknown as ArrClient;
+    it("should ensure minimum batch size of 1 for positive global batch", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+        const client2 = new MockArrClient("sonarr", 10.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 5,
-        upgrade_batch_size: 0,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 5,
+          upgrade_batch_size: 0,
+        };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1, client2], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
-
-      exitSpy.mockRestore();
-
-      // Even though client1 has low weight, it should get at least 1
-      expect(
-        (client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]
-      ).toBeGreaterThanOrEqual(1);
+        // Even though client1 has low weight, it should get at least 1
+        expect(
+          (client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0],
+        ).toBeGreaterThanOrEqual(1);
+      })();
     });
 
-    it('should handle batch size 0 (disabled)', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+    it("should handle batch size 0 (disabled)", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 0,
-        upgrade_batch_size: 0,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 0,
+          upgrade_batch_size: 0,
+        };
 
-      const orchestrator = new Orchestrator([client1], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
-
-      exitSpy.mockRestore();
-
-      // Should not call search methods when batch size is 0
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(0);
-      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(0);
+        // Should not call search methods when batch size is 0
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(0);
+        expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(0);
+      })();
     });
 
-    it('should handle batch size -1 (unlimited)', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+    it("should handle batch size -1 (unlimited)", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: -1,
-        upgrade_batch_size: -1,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: -1,
+          upgrade_batch_size: -1,
+        };
 
-      const orchestrator = new Orchestrator([client1], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
-
-      exitSpy.mockRestore();
-
-      // Should pass -1 to search methods
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(-1);
-      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(-1);
+        // Should pass -1 to search methods
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(-1);
+        expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(-1);
+      })();
     });
 
-    it('should handle equal weights', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
-      const client2 = new MockArrClient('sonarr', 1.0) as unknown as ArrClient;
-      const client3 = new MockArrClient('lidarr', 1.0) as unknown as ArrClient;
+    it("should handle equal weights", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+        const client2 = new MockArrClient("sonarr", 1.0) as unknown as ArrClient;
+        const client3 = new MockArrClient("lidarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 30,
-        upgrade_batch_size: 0,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 30,
+          upgrade_batch_size: 0,
+        };
 
-      const orchestrator = new Orchestrator([client1, client2, client3], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1, client2, client3], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
-
-      exitSpy.mockRestore();
-
-      // Each should get 10 items (1/3 of 30)
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
-      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
-      expect((client3 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
+        // Each should get 10 items (1/3 of 30)
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
+        expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
+        expect((client3 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(10);
+      })();
     });
 
-    it('should call both missing and cutoff searches independently', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+    it("should call both missing and cutoff searches independently", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 20,
-        upgrade_batch_size: 10,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 20,
+          upgrade_batch_size: 10,
+        };
 
-      const orchestrator = new Orchestrator([client1], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(20);
 
-      exitSpy.mockRestore();
-
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(20);
-
-      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(1);
-      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
+        expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(1);
+        expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
+      })();
     });
 
-    it('should trigger cutoff searches even when missing batch size is 0', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+    it("should trigger cutoff searches even when missing batch size is 0", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 0, // disabled
-        upgrade_batch_size: 10, // enabled
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 0, // disabled
+          upgrade_batch_size: 10, // enabled
+        };
 
-      const orchestrator = new Orchestrator([client1], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
+        // Missing should not be called (disabled)
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(0);
 
-      exitSpy.mockRestore();
-
-      // Missing should not be called (disabled)
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(0);
-
-      // Cutoff should still be called (enabled)
-      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(1);
-      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
+        // Cutoff should still be called (enabled)
+        expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(1);
+        expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls[0]).toBe(10);
+      })();
     });
 
-    it('should trigger missing searches even when cutoff batch size is 0', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+    it("should trigger missing searches even when cutoff batch size is 0", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 20, // enabled
-        upgrade_batch_size: 0, // disabled
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 20, // enabled
+          upgrade_batch_size: 0, // disabled
+        };
 
-      const orchestrator = new Orchestrator([client1], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
+        // Missing should be called (enabled)
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(20);
 
-      exitSpy.mockRestore();
-
-      // Missing should be called (enabled)
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(20);
-
-      // Cutoff should not be called (disabled)
-      expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(0);
+        // Cutoff should not be called (disabled)
+        expect((client1 as unknown as MockArrClient).triggerCutoffSearchesCalls).toHaveLength(0);
+      })();
     });
 
-    it('should handle fractional weight distribution with rounding', async () => {
-      const client1 = new MockArrClient('radarr', 1.5) as unknown as ArrClient;
-      const client2 = new MockArrClient('sonarr', 1.5) as unknown as ArrClient;
+    it("should handle fractional weight distribution with rounding", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.5) as unknown as ArrClient;
+        const client2 = new MockArrClient("sonarr", 1.5) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 10,
-        upgrade_batch_size: 0,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1, client2], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
-
-      exitSpy.mockRestore();
-
-      // Each should get 5 items (0.5 share of 10)
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
-      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
+        // Each should get 5 items (0.5 share of 10)
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
+        expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
+      })();
     });
 
-    it('should handle zero total weight by giving minimum batch size to all clients', async () => {
-      const client1 = new MockArrClient('radarr', 0) as unknown as ArrClient;
-      const client2 = new MockArrClient('sonarr', 0) as unknown as ArrClient;
+    it("should handle zero total weight by giving minimum batch size to all clients", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 0) as unknown as ArrClient;
+        const client2 = new MockArrClient("sonarr", 0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 10,
-        upgrade_batch_size: 0,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1, client2], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
+        // With 0 weight share (0 * 10 = 0), Math.max(1, 0) still gives batch size 1
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+        expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
 
-      exitSpy.mockRestore();
-
-      // With 0 weight share (0 * 10 = 0), Math.max(1, 0) still gives batch size 1
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
-      expect((client1 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
-
-      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
-      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
-    });
-  });
-
-  describe('daemon mode', () => {
-    // Note: Daemon mode tests are complex due to fake timers and event emitters
-    // The core logic is tested via one-shot mode tests
-    // Real daemon behavior is verified through integration testing
-
-    it.skip('should run continuously in daemon mode', () => {
-      // Skipped: Complex timer/event interaction
-    });
-
-    it.skip('should sleep between cycles in daemon mode', () => {
-      // Skipped: Complex timer/event interaction
-    });
-
-    it.skip('should exit gracefully on shutdown in daemon mode', () => {
-      // Skipped: Complex timer/event interaction
+        expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+        expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(1);
+      })();
     });
   });
 
-  describe('error recovery', () => {
-    it('should continue processing other clients after one fails', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
-      const client2 = new MockArrClient('sonarr', 1.0) as unknown as ArrClient;
+  describe("daemon mode", () => {
+    it("should run continuously in daemon mode", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      // Make client1 throw an error
-      vi.spyOn(client1 as unknown as MockArrClient, 'triggerMissingSearches').mockRejectedValue(
-        new Error('Connection refused')
-      );
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+          interval: 1, // 1 second interval
+        };
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 10,
-        upgrade_batch_size: 0,
-      };
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: false,
+          registerSignalHandlers: false,
+        });
 
-      const orchestrator = new Orchestrator([client1, client2], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        // Stop after 2 cycles
+        let cycleCount = 0;
+        const originalRunCycle = (orchestrator as any).runCycle;
+        (orchestrator as any).runCycle = async () => {
+          cycleCount++;
+          await originalRunCycle.call(orchestrator);
+          if (cycleCount >= 2) {
+            (orchestrator as any).shouldStop = true;
+          }
+        };
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-
-      // Should not throw, should continue to client2
-      await expect(orchestrator.start()).resolves.not.toThrow();
-
-      exitSpy.mockRestore();
-
-      // client2 should have been processed despite client1 failing
-      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
-      expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
+        const time = new FakeTime();
+        try {
+          const promise = orchestrator.start();
+          // Let the daemon run a few cycles
+          for (let i = 0; i < 5; i++) {
+            await time.tickAsync(1000);
+          }
+          await promise;
+          expect(cycleCount).toBeGreaterThanOrEqual(2);
+        } finally {
+          time.restore();
+        }
+      })();
     });
 
-    it('should log error details when client fails', async () => {
-      const { logger } = await import('../src/logger.ts');
-      const client = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+    it("should sleep between cycles in daemon mode", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      const testError = new Error('API timeout');
-      vi.spyOn(client as unknown as MockArrClient, 'triggerMissingSearches').mockRejectedValue(
-        testError
-      );
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+          interval: 60, // 60 second interval
+        };
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 10,
-        upgrade_batch_size: 0,
-      };
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: false,
+          registerSignalHandlers: false,
+        });
 
-      const orchestrator = new Orchestrator([client], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        // Track cycle timing
+        const cycleTimes: number[] = [];
+        const originalRunCycle = (orchestrator as any).runCycle;
+        (orchestrator as any).runCycle = async () => {
+          cycleTimes.push(Date.now());
+          await originalRunCycle.call(orchestrator);
+          if (cycleTimes.length >= 2) {
+            (orchestrator as any).shouldStop = true;
+          }
+        };
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-
-      await orchestrator.start();
-
-      exitSpy.mockRestore();
-
-      // Verify error was logged
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          instance: 'radarr',
-          error: 'API timeout',
-        }),
-        expect.stringContaining('Error during indexer triggers')
-      );
+        const time = new FakeTime();
+        try {
+          const promise = orchestrator.start();
+          // Advance through 2 cycles with 60s sleep between
+          for (let i = 0; i < 3; i++) {
+            await time.tickAsync(60000);
+          }
+          await promise;
+          // Should have run at least 2 cycles
+          expect(cycleTimes.length).toBeGreaterThanOrEqual(2);
+          // The sleep between cycles should be ~60s
+          if (cycleTimes.length >= 2) {
+            expect(cycleTimes[1] - cycleTimes[0]).toBeGreaterThanOrEqual(60000);
+          }
+        } finally {
+          time.restore();
+        }
+      })();
     });
 
-    it('should handle non-Error exceptions', async () => {
-      const { logger } = await import('../src/logger.ts');
-      const client = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+    it("should exit gracefully on shutdown in daemon mode", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const exitStub = stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      // Throw a string instead of Error
-      vi.spyOn(client as unknown as MockArrClient, 'triggerMissingSearches').mockRejectedValue(
-        'Something went wrong'
-      );
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+          interval: 1,
+        };
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 10,
-        upgrade_batch_size: 0,
-      };
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: false,
+          registerSignalHandlers: false,
+        });
 
-      const orchestrator = new Orchestrator([client], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        // Trigger shutdown after first cycle
+        const originalRunCycle = (orchestrator as any).runCycle;
+        (orchestrator as any).runCycle = async () => {
+          await originalRunCycle.call(orchestrator);
+          (orchestrator as any).shouldStop = true;
+        };
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        const time = new FakeTime();
+        try {
+          const promise = orchestrator.start();
+          for (let i = 0; i < 3; i++) {
+            await time.tickAsync(1000);
+          }
+          await promise;
+          // Should have exited gracefully without calling process.exit
+          expect(exitStub.calls.length).toBe(0);
+        } finally {
+          time.restore();
+        }
+      })();
+    });
+  });
 
-      await orchestrator.start();
+  describe("error recovery", () => {
+    it("should continue processing other clients after one fails", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+        const client2 = new MockArrClient("sonarr", 1.0) as unknown as ArrClient;
 
-      exitSpy.mockRestore();
+        // Make client1 throw an error
+        stub(client1 as unknown as MockArrClient, "triggerMissingSearches", async () => {
+          throw new Error("Connection refused");
+        });
 
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          instance: 'radarr',
-          error: 'Something went wrong',
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
+
+        const orchestrator = new Orchestrator([client1, client2], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
+
+        // Should not throw, should continue to client2
+        await expect(orchestrator.start()).resolves.not.toThrow();
+
+        // client2 should have been processed despite client1 failing
+        expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls).toHaveLength(1);
+        expect((client2 as unknown as MockArrClient).triggerMissingSearchesCalls[0]).toBe(5);
+      })();
+    });
+
+    it("should log error details when client fails", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const errorStub = stub(logger, "error");
+        stub(process, "exit", () => undefined as never);
+        const client = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+
+        const testError = new Error("API timeout");
+        stub(client as unknown as MockArrClient, "triggerMissingSearches", async () => {
+          throw testError;
+        });
+
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
+
+        const orchestrator = new Orchestrator([client], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
+
+        await orchestrator.start();
+
+        // Verify error was logged
+        expect(errorStub.calls[0].args[0]).toMatchObject({
+          instance: "radarr",
+          error: "API timeout",
+        });
+        expect(errorStub.calls[0].args[1]).toContain("Error during indexer triggers");
+      })();
+    });
+
+    it("should handle non-Error exceptions", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const errorStub = stub(logger, "error");
+        stub(process, "exit", () => undefined as never);
+        const client = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+
+        // Throw a string instead of Error
+        stub(client as unknown as MockArrClient, "triggerMissingSearches", async () => {
+          throw "Something went wrong";
+        });
+
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
+
+        const orchestrator = new Orchestrator([client], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
+
+        await orchestrator.start();
+
+        expect(errorStub.calls[0].args[0]).toMatchObject({
+          instance: "radarr",
+          error: "Something went wrong",
           stack: undefined,
-        }),
-        expect.any(String)
-      );
+        });
+      })();
     });
   });
 
-  describe('shutdown signal handling', () => {
+  describe("shutdown signal handling", () => {
     // Note: Signal handling tests are complex with event emitters and multiple listeners
     // Basic shutdown logic is tested in error recovery skipping behavior
 
-    it.skip('should handle SIGTERM signal', () => {
-      // Skipped: Complex event emitter interaction
+    it("should handle SIGTERM signal", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const exitStub = stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
+
+        // Capture the SIGTERM handler
+        let sigtermHandler: (() => void) | undefined;
+        const onStub = stub(
+          process,
+          "on",
+          (_event: string | symbol, handler: (...args: unknown[]) => void) => {
+            sigtermHandler = handler as () => void;
+            return process;
+          },
+        );
+
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: true,
+        });
+
+        // Verify handler was registered
+        expect(onStub.calls[0].args[0]).toBe("SIGINT");
+        expect(onStub.calls[1].args[0]).toBe("SIGTERM");
+
+        // Trigger the SIGTERM handler
+        sigtermHandler!();
+
+        // Wait for the shutdown to complete
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Should have called process.exit(0)
+        expect(exitStub.calls.length).toBe(1);
+        expect(exitStub.calls[0].args[0]).toBe(0);
+
+        // Clean up
+        orchestrator.dispose();
+      })();
     });
 
-    it.skip('should handle SIGINT signal', () => {
-      // Skipped: Complex event emitter interaction
+    it("should handle SIGINT signal", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const exitStub = stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
+
+        // Capture the SIGINT handler
+        let sigintHandler: (() => void) | undefined;
+        const onStub = stub(
+          process,
+          "on",
+          (_event: string | symbol, handler: (...args: unknown[]) => void) => {
+            sigintHandler = handler as () => void;
+            return process;
+          },
+        );
+
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: true,
+        });
+
+        // Verify handler was registered
+        expect(onStub.calls[0].args[0]).toBe("SIGINT");
+        expect(onStub.calls[1].args[0]).toBe("SIGTERM");
+
+        // Trigger the SIGINT handler
+        sigintHandler!();
+
+        // Wait for the shutdown to complete
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Should have called process.exit(0)
+        expect(exitStub.calls.length).toBe(1);
+        expect(exitStub.calls[0].args[0]).toBe(0);
+
+        // Clean up
+        orchestrator.dispose();
+      })();
     });
 
-    it('should skip clients after shutdown signal in same cycle', async () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
-      const client2 = new MockArrClient('sonarr', 1.0) as unknown as ArrClient;
+    it("should skip clients after shutdown signal in same cycle", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+        const client2 = new MockArrClient("sonarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 10,
-        upgrade_batch_size: 0,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
 
-      const orchestrator = new Orchestrator([client1, client2], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        const orchestrator = new Orchestrator([client1, client2], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      // Immediately trigger shutdown before running
-      (orchestrator as any).shouldStop = true;
+        // Immediately trigger shutdown before running
+        (orchestrator as any).shouldStop = true;
 
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+        await orchestrator.start();
 
-      await orchestrator.start();
-
-      exitSpy.mockRestore();
-
-      // Clients should be skipped due to shutdown
-      // This verifies the shutdown check works
+        // Clients should be skipped due to shutdown
+        // This verifies the shutdown check works
+      })();
     });
   });
 
-  describe('cleanup', () => {
-    it('should remove signal handlers when dispose is called', () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+  describe("cleanup", () => {
+    it("should remove signal handlers when dispose is called", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 10,
-        upgrade_batch_size: 0,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
 
-      // Create with signal handlers enabled
-      const orchestrator = new Orchestrator([client1], settings, {
-        oneShot: true,
-        registerSignalHandlers: true,
-      });
+        // Create with signal handlers enabled
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: true,
+        });
 
-      const offSpy = vi.spyOn(process, 'off');
+        const offStub = stub(process, "off", () => process);
 
-      orchestrator.dispose();
+        orchestrator.dispose();
 
-      // Should remove both signal handlers
-      expect(offSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function));
-      expect(offSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
-
-      offSpy.mockRestore();
+        // Should remove both signal handlers
+        expect(offStub.calls[0].args[0]).toBe("SIGINT");
+        expect(offStub.calls[1].args[0]).toBe("SIGTERM");
+      })();
     });
 
-    it('should handle dispose when signal handlers were not registered', () => {
-      const client1 = new MockArrClient('radarr', 1.0) as unknown as ArrClient;
+    it("should handle dispose when signal handlers were not registered", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-      const settings: GlobalSettings = {
-        ...defaultSettings,
-        missing_batch_size: 10,
-        upgrade_batch_size: 0,
-      };
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
 
-      // Create without signal handlers
-      const orchestrator = new Orchestrator([client1], settings, {
-        oneShot: true,
-        registerSignalHandlers: false,
-      });
+        // Create without signal handlers
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: false,
+        });
 
-      const offSpy = vi.spyOn(process, 'off');
+        const offStub = stub(process, "off", () => process);
 
-      // Should not throw
-      expect(() => orchestrator.dispose()).not.toThrow();
+        // Should not throw
+        expect(() => orchestrator.dispose()).not.toThrow();
 
-      // Should not call process.off since handlers were never registered
-      expect(offSpy).not.toHaveBeenCalled();
-
-      offSpy.mockRestore();
+        // Should not call process.off since handlers were never registered
+        expect(offStub.calls.length).toBe(0);
+      })();
     });
   });
 });

@@ -2,45 +2,43 @@
  * Tests for HttpClient retry logic and error handling
  */
 
-import { EventEmitter } from 'node:events';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type HttpClient, createHttpClient, DEFAULT_TIMEOUT } from '../src/http/HttpClient.ts';
+import { expect } from "@std/expect";
+import { assertSpyCalls, resolvesNext, stub } from "@std/testing/mock";
+import { FakeTime } from "@std/testing/time";
+import { EventEmitter } from "node:events";
+import { afterEach, beforeEach, describe, it } from "node:test";
+import { createHttpClient, DEFAULT_TIMEOUT, type HttpClient } from "../src/http/HttpClient.ts";
+import { logger } from "../src/logger.ts";
 
-// Mock logger to capture log calls
+// Mock logger to capture log calls (stub logger.child to intercept createLogger)
 const mockLogger = {
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
+  info: (..._args: unknown[]) => {},
+  warn: (..._args: unknown[]) => {},
+  error: (..._args: unknown[]) => {},
+  debug: (..._args: unknown[]) => {},
 };
 
-vi.mock('../src/logger.ts', () => ({
-  createLogger: vi.fn(() => mockLogger),
-}));
-
 // Helper to create a mock Response
-function createResponse(data: unknown, status = 200, statusText = 'OK'): Response {
+function createResponse(data: unknown, status = 200, statusText = "OK"): Response {
   return new Response(JSON.stringify(data), {
     status,
     statusText,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
   });
 }
 
-describe('HttpClient', () => {
+describe("HttpClient", { concurrency: false }, () => {
   let httpClient: HttpClient;
-  let mockFetch: ReturnType<typeof vi.fn>;
+  let time: FakeTime;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let childStub: { restore(): void };
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-
-    mockFetch = vi.fn();
-    vi.stubGlobal('fetch', mockFetch);
-
+    time = new FakeTime();
+    childStub = stub(logger, "child", () => mockLogger as never);
     httpClient = createHttpClient({
-      baseURL: 'http://localhost:7878',
-      apiKey: 'test-api-key',
+      baseURL: "http://localhost:7878",
+      apiKey: "test-api-key",
       timeout: DEFAULT_TIMEOUT,
       maxRetries: 3,
       retryDelay: 1000,
@@ -48,169 +46,218 @@ describe('HttpClient', () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
-    vi.unstubAllGlobals();
+    childStub.restore();
+    time.restore();
   });
 
-  it('should make successful GET request', async () => {
-    mockFetch.mockResolvedValueOnce(createResponse({ id: 1 }));
+  it("should make successful GET request", async () => {
+    using fetchStub = stub(globalThis, "fetch", () => Promise.resolve(createResponse({ id: 1 })));
 
-    const result = await httpClient.get('/api/v3/system/status');
+    const result = await httpClient.get("/api/v3/system/status");
 
     expect(result).toEqual({ id: 1 });
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:7878/api/v3/system/status',
-      expect.objectContaining({ method: 'GET' }),
-    );
+    expect(fetchStub.calls[0].args[0]).toBe("http://localhost:7878/api/v3/system/status");
+    expect(fetchStub.calls[0].args[1]).toMatchObject({ method: "GET" });
   });
 
-  it('should make successful GET request with params', async () => {
-    mockFetch.mockResolvedValueOnce(createResponse({ records: [] }));
+  it("should make successful GET request with params", async () => {
+    using fetchStub = stub(
+      globalThis,
+      "fetch",
+      () => Promise.resolve(createResponse({ records: [] })),
+    );
 
-    const result = await httpClient.get('/api/v3/wanted/missing', { page: 1 });
+    const result = await httpClient.get("/api/v3/wanted/missing", { page: 1 });
 
     expect(result).toEqual({ records: [] });
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:7878/api/v3/wanted/missing?page=1',
-      expect.objectContaining({ method: 'GET' }),
+    expect(fetchStub.calls[0].args[0]).toBe(
+      "http://localhost:7878/api/v3/wanted/missing?page=1",
     );
+    expect(fetchStub.calls[0].args[1]).toMatchObject({ method: "GET" });
   });
 
-  it('should make successful POST request', async () => {
-    mockFetch.mockResolvedValueOnce(createResponse({ id: 123 }));
+  it("should make successful POST request", async () => {
+    using fetchStub = stub(globalThis, "fetch", () => Promise.resolve(createResponse({ id: 123 })));
 
-    const result = await httpClient.post('/api/v3/command', { name: 'Test' });
+    const result = await httpClient.post("/api/v3/command", { name: "Test" });
 
     expect(result).toEqual({ id: 123 });
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:7878/api/v3/command',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ name: 'Test' }),
-      }),
-    );
+    expect(fetchStub.calls[0].args[0]).toBe("http://localhost:7878/api/v3/command");
+    expect(fetchStub.calls[0].args[1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ name: "Test" }),
+    });
   });
 
-  it('should fail fast on client errors (4xx except 429)', async () => {
-    mockFetch.mockResolvedValueOnce(createResponse({}, 401, 'Unauthorized'));
-
-    await expect(httpClient.get('/api/v3/system/status')).rejects.toThrow(
-      'HTTP 401: Unauthorized - GET /api/v3/system/status'
+  it("should fail fast on client errors (4xx except 429)", async () => {
+    using fetchStub = stub(
+      globalThis,
+      "fetch",
+      () => Promise.resolve(createResponse({}, 401, "Unauthorized")),
     );
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    await expect(httpClient.get("/api/v3/system/status")).rejects.toThrow(
+      "HTTP 401: Unauthorized - GET /api/v3/system/status",
+    );
+
+    assertSpyCalls(fetchStub, 1);
   });
 
-  it('should retry on server errors (5xx) and succeed', async () => {
-    mockFetch
-      .mockResolvedValueOnce(createResponse({}, 500, 'Internal Server Error'))
-      .mockResolvedValueOnce(createResponse({}, 503, 'Service Unavailable'))
-      .mockResolvedValueOnce(createResponse({ status: 'ok' }));
+  it("should retry on server errors (5xx) and succeed", async () => {
+    using fetchStub = stub(
+      globalThis,
+      "fetch",
+      resolvesNext([
+        Promise.resolve(createResponse({}, 500, "Internal Server Error")),
+        Promise.resolve(createResponse({}, 503, "Service Unavailable")),
+        Promise.resolve(createResponse({ status: "ok" })),
+      ]),
+    );
 
-    const promise = httpClient.get('/api/v3/system/status');
-    await vi.runAllTimersAsync();
+    const promise = httpClient.get("/api/v3/system/status");
+    await time.runAllAsync();
 
-    expect(await promise).toEqual({ status: 'ok' });
-    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(await promise).toEqual({ status: "ok" });
+    assertSpyCalls(fetchStub, 3);
   });
 
-  it('should fail after exhausting retries', async () => {
-    mockFetch.mockResolvedValue(createResponse({}, 503, 'Service Unavailable'));
+  it("should fail after exhausting retries", async () => {
+    using fetchStub = stub(
+      globalThis,
+      "fetch",
+      () => Promise.resolve(createResponse({}, 503, "Service Unavailable")),
+    );
 
-    const promise = httpClient.get('/api/v3/system/status');
+    const promise = httpClient.get("/api/v3/system/status");
     promise.catch(() => {});
 
-    await vi.runAllTimersAsync();
+    await time.runAllAsync();
 
-    await expect(promise).rejects.toThrow('HTTP 503 error persisted after 4 attempts');
-    expect(mockFetch).toHaveBeenCalledTimes(4); // Initial + 3 retries
+    await expect(promise).rejects.toThrow("HTTP 503 error persisted after 4 attempts");
+    assertSpyCalls(fetchStub, 4); // Initial + 3 retries
   });
 
-  it('should retry on rate limiting (429)', async () => {
-    mockFetch
-      .mockResolvedValueOnce(createResponse({}, 429, 'Too Many Requests'))
-      .mockResolvedValueOnce(createResponse({ status: 'ok' }));
-
-    const promise = httpClient.get('/api/v3/system/status');
-    await vi.runAllTimersAsync();
-
-    expect(await promise).toEqual({ status: 'ok' });
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-  });
-
-  it('should retry on network errors (no response)', async () => {
-    mockFetch
-      .mockRejectedValueOnce(new TypeError('fetch failed'))
-      .mockResolvedValueOnce(createResponse({ status: 'ok' }));
-
-    const promise = httpClient.get('/api/v3/system/status');
-    await vi.runAllTimersAsync();
-
-    expect(await promise).toEqual({ status: 'ok' });
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-  });
-
-  it('should handle non-network exceptions', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Custom error'));
-
-    await expect(httpClient.get('/api/v3/test')).rejects.toThrow('Custom error');
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('should send requests with correct headers and timeout', async () => {
-    mockFetch.mockResolvedValueOnce(createResponse({ id: 1 }));
-
-    await httpClient.get('/api/v3/system/status');
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:7878/api/v3/system/status',
-      expect.objectContaining({
-        method: 'GET',
-        headers: {
-          'X-Api-Key': 'test-api-key',
-          'Content-Type': 'application/json',
-        },
-      }),
+  it("should retry on rate limiting (429)", async () => {
+    using fetchStub = stub(
+      globalThis,
+      "fetch",
+      resolvesNext([
+        Promise.resolve(createResponse({}, 429, "Too Many Requests")),
+        Promise.resolve(createResponse({ status: "ok" })),
+      ]),
     );
+
+    const promise = httpClient.get("/api/v3/system/status");
+    await time.runAllAsync();
+
+    expect(await promise).toEqual({ status: "ok" });
+    assertSpyCalls(fetchStub, 2);
   });
 
-  it('should increment attempt counter in logs', async () => {
-    mockFetch
-      .mockResolvedValueOnce(createResponse({}, 500))
-      .mockResolvedValueOnce(createResponse({}, 500))
-      .mockResolvedValueOnce(createResponse({}, 500))
-      .mockResolvedValueOnce(createResponse({ status: 'ok' }));
+  it("should retry on network errors (no response)", async () => {
+    let fetchCalls = 0;
+    using fetchStub = stub(globalThis, "fetch", () => {
+      fetchCalls++;
+      if (fetchCalls === 1) {
+        return Promise.reject(new TypeError("fetch failed"));
+      }
+      return Promise.resolve(createResponse({ status: "ok" }));
+    });
 
-    const promise = httpClient.get('/api/v3/system/status');
-    await vi.runAllTimersAsync();
+    const promise = httpClient.get("/api/v3/system/status");
+    await time.runAllAsync();
+
+    expect(await promise).toEqual({ status: "ok" });
+    assertSpyCalls(fetchStub, 2);
+  });
+
+  it("should fail after exhausting network error retries", async () => {
+    using fetchStub = stub(
+      globalThis,
+      "fetch",
+      () => Promise.reject(new TypeError("fetch failed")),
+    );
+
+    const promise = httpClient.get("/api/v3/system/status");
+    promise.catch(() => {});
+    await time.runAllAsync();
+
+    await expect(promise).rejects.toThrow(
+      "Network error persisted after 4 attempts: GET /api/v3/system/status",
+    );
+    assertSpyCalls(fetchStub, 4); // Initial + 3 retries
+  });
+
+  it("should handle non-network exceptions", async () => {
+    using fetchStub = stub(globalThis, "fetch", () => Promise.reject(new Error("Custom error")));
+
+    await expect(httpClient.get("/api/v3/test")).rejects.toThrow("Custom error");
+    assertSpyCalls(fetchStub, 1);
+  });
+
+  it("should send requests with correct headers and timeout", async () => {
+    using fetchStub = stub(globalThis, "fetch", () => Promise.resolve(createResponse({ id: 1 })));
+
+    await httpClient.get("/api/v3/system/status");
+
+    expect(fetchStub.calls[0].args[0]).toBe("http://localhost:7878/api/v3/system/status");
+    expect(fetchStub.calls[0].args[1]).toMatchObject({
+      method: "GET",
+      headers: {
+        "X-Api-Key": "test-api-key",
+        "Content-Type": "application/json",
+      },
+    });
+  });
+
+  it("should increment attempt counter in logs", async () => {
+    using warnStub = stub(mockLogger, "warn");
+    using _fetchStub = stub(
+      globalThis,
+      "fetch",
+      resolvesNext([
+        Promise.resolve(createResponse({}, 500)),
+        Promise.resolve(createResponse({}, 500)),
+        Promise.resolve(createResponse({}, 500)),
+        Promise.resolve(createResponse({ status: "ok" })),
+      ]),
+    );
+
+    const promise = httpClient.get("/api/v3/system/status");
+    await time.runAllAsync();
     await promise;
 
-    expect(mockLogger.warn).toHaveBeenCalledTimes(3);
+    assertSpyCalls(warnStub, 3);
 
-    const warnCalls = mockLogger.warn.mock.calls;
-    expect(warnCalls[0][0]).toMatchObject({ attempt: 1 });
-    expect(warnCalls[1][0]).toMatchObject({ attempt: 2 });
-    expect(warnCalls[2][0]).toMatchObject({ attempt: 3 });
+    const warnCalls = warnStub.calls;
+    expect(warnCalls[0].args[0]).toMatchObject({ attempt: 1 });
+    expect(warnCalls[1].args[0]).toMatchObject({ attempt: 2 });
+    expect(warnCalls[2].args[0]).toMatchObject({ attempt: 3 });
   });
 
-  it('should use interruptible sleep when shutdownEmitter provided', async () => {
+  it("should use interruptible sleep when shutdownEmitter provided", async () => {
     const mockEmitter = new EventEmitter();
     const clientWithShutdown = createHttpClient({
-      baseURL: 'http://localhost:7878',
-      apiKey: 'test-api-key',
+      baseURL: "http://localhost:7878",
+      apiKey: "test-api-key",
       maxRetries: 1,
       retryDelay: 1000,
       shutdownEmitter: mockEmitter,
     });
 
-    mockFetch
-      .mockResolvedValueOnce(createResponse({}, 500))
-      .mockResolvedValueOnce(createResponse({ status: 'ok' }));
+    using fetchStub = stub(
+      globalThis,
+      "fetch",
+      resolvesNext([
+        Promise.resolve(createResponse({}, 500)),
+        Promise.resolve(createResponse({ status: "ok" })),
+      ]),
+    );
 
-    const promise = clientWithShutdown.get('/test');
-    await vi.runAllTimersAsync();
+    const promise = clientWithShutdown.get("/test");
+    await time.runAllAsync();
 
-    expect(await promise).toEqual({ status: 'ok' });
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(await promise).toEqual({ status: "ok" });
+    assertSpyCalls(fetchStub, 2);
   });
 });
