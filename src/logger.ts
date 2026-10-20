@@ -15,13 +15,17 @@ const timezone = process.env["TZ"] ?? "UTC";
 /**
  * Create logger options based on environment
  */
-function getLoggerOptions(): LoggerOptions {
-  if (logFormat === "pretty") {
+export function getLoggerOptions(
+  format: string = logFormat,
+  level: string = logLevel,
+  tz: string = timezone,
+): LoggerOptions {
+  if (format === "pretty") {
     // Use SYS: prefix to respect TZ environment variable, or UTC: to force UTC
-    const timeFormat = timezone === "UTC" ? "UTC:yyyy-mm-dd HH:MM:ss" : "SYS:yyyy-mm-dd HH:MM:ss";
+    const timeFormat = tz === "UTC" ? "UTC:yyyy-mm-dd HH:MM:ss" : "SYS:yyyy-mm-dd HH:MM:ss";
 
     return {
-      level: logLevel,
+      level,
       transport: {
         target: "pino-pretty",
         options: {
@@ -36,7 +40,7 @@ function getLoggerOptions(): LoggerOptions {
 
   // Default to JSON format
   return {
-    level: logLevel,
+    level,
     timestamp: pino.stdTimeFunctions.isoTime,
     base: { service: "sharriff" },
     formatters: {

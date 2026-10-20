@@ -142,6 +142,28 @@ describe("Main Application", { concurrency: false }, () => {
       })();
     });
 
+    it("should handle non-Error exceptions with undefined stack", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const errorStub = stub(logger, "error");
+        const exitStub = stub(process, "exit", () => undefined as never);
+
+        await main({
+          loadConfig: () => {
+            throw "Config file not found";
+          },
+          ArrClient: MockArrClient as never,
+          Orchestrator: MockOrchestrator as never,
+        });
+
+        expect(errorStub.calls[0].args[0]).toMatchObject({
+          error: "Config file not found",
+          stack: undefined,
+        });
+        expect(exitStub.calls[0].args[0]).toBe(1);
+      })();
+    });
+
     it("should exit with error when client initialization fails", async () => {
       await mockSessionAsync(async () => {
         stub(logger, "child", () => mockLogger as never);

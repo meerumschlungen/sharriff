@@ -171,6 +171,21 @@ describe("HttpClient", { concurrency: false }, () => {
     assertSpyCalls(fetchStub, 2);
   });
 
+  it("should fail after exhausting network error retries", async () => {
+    using fetchStub = stub(globalThis, "fetch", () =>
+      Promise.reject(new TypeError("fetch failed"))
+    );
+
+    const promise = httpClient.get("/api/v3/system/status");
+    promise.catch(() => {});
+    await time.runAllAsync();
+
+    await expect(promise).rejects.toThrow(
+      "Network error persisted after 4 attempts: GET /api/v3/system/status",
+    );
+    assertSpyCalls(fetchStub, 4); // Initial + 3 retries
+  });
+
   it("should handle non-network exceptions", async () => {
     using fetchStub = stub(globalThis, "fetch", () => Promise.reject(new Error("Custom error")));
 

@@ -5,6 +5,7 @@
 import { beforeEach, describe, it } from "node:test";
 import { expect } from "@std/expect";
 import { mockSessionAsync, stub } from "@std/testing/mock";
+import { FakeTime } from "@std/testing/time";
 import { Orchestrator } from "../src/orchestrator/Orchestrator.ts";
 import type { ArrClient } from "../src/clients/ArrClient.ts";
 import type { GlobalSettings } from "../src/types.ts";
@@ -345,20 +346,137 @@ describe("Orchestrator", { concurrency: false }, () => {
   });
 
   describe("daemon mode", () => {
-    // Note: Daemon mode tests are complex due to fake timers and event emitters
-    // The core logic is tested via one-shot mode tests
-    // Real daemon behavior is verified through integration testing
+    it("should run continuously in daemon mode", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
 
-    it.skip("should run continuously in daemon mode", () => {
-      // Skipped: Complex timer/event interaction
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+          interval: 1, // 1 second interval
+        };
+
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: false,
+          registerSignalHandlers: false,
+        });
+
+        // Stop after 2 cycles
+        let cycleCount = 0;
+        const originalRunCycle = (orchestrator as any).runCycle;
+        (orchestrator as any).runCycle = async () => {
+          cycleCount++;
+          await originalRunCycle.call(orchestrator);
+          if (cycleCount >= 2) {
+            (orchestrator as any).shouldStop = true;
+          }
+        };
+
+        const time = new FakeTime();
+        try {
+          const promise = orchestrator.start();
+          // Let the daemon run a few cycles
+          for (let i = 0; i < 5; i++) {
+            await time.tickAsync(1000);
+          }
+          await promise;
+          expect(cycleCount).toBeGreaterThanOrEqual(2);
+        } finally {
+          time.restore();
+        }
+      })();
     });
 
-    it.skip("should sleep between cycles in daemon mode", () => {
-      // Skipped: Complex timer/event interaction
+    it("should sleep between cycles in daemon mode", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+          interval: 60, // 60 second interval
+        };
+
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: false,
+          registerSignalHandlers: false,
+        });
+
+        // Track cycle timing
+        const cycleTimes: number[] = [];
+        const originalRunCycle = (orchestrator as any).runCycle;
+        (orchestrator as any).runCycle = async () => {
+          cycleTimes.push(Date.now());
+          await originalRunCycle.call(orchestrator);
+          if (cycleTimes.length >= 2) {
+            (orchestrator as any).shouldStop = true;
+          }
+        };
+
+        const time = new FakeTime();
+        try {
+          const promise = orchestrator.start();
+          // Advance through 2 cycles with 60s sleep between
+          for (let i = 0; i < 3; i++) {
+            await time.tickAsync(60000);
+          }
+          await promise;
+          // Should have run at least 2 cycles
+          expect(cycleTimes.length).toBeGreaterThanOrEqual(2);
+          // The sleep between cycles should be ~60s
+          if (cycleTimes.length >= 2) {
+            expect(cycleTimes[1] - cycleTimes[0]).toBeGreaterThanOrEqual(60000);
+          }
+        } finally {
+          time.restore();
+        }
+      })();
     });
 
-    it.skip("should exit gracefully on shutdown in daemon mode", () => {
-      // Skipped: Complex timer/event interaction
+    it("should exit gracefully on shutdown in daemon mode", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const exitStub = stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+          interval: 1,
+        };
+
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: false,
+          registerSignalHandlers: false,
+        });
+
+        // Trigger shutdown after first cycle
+        const originalRunCycle = (orchestrator as any).runCycle;
+        (orchestrator as any).runCycle = async () => {
+          await originalRunCycle.call(orchestrator);
+          (orchestrator as any).shouldStop = true;
+        };
+
+        const time = new FakeTime();
+        try {
+          const promise = orchestrator.start();
+          for (let i = 0; i < 3; i++) {
+            await time.tickAsync(1000);
+          }
+          await promise;
+          // Should have exited gracefully without calling process.exit
+          expect(exitStub.calls.length).toBe(0);
+        } finally {
+          time.restore();
+        }
+      })();
     });
   });
 
@@ -467,12 +585,98 @@ describe("Orchestrator", { concurrency: false }, () => {
     // Note: Signal handling tests are complex with event emitters and multiple listeners
     // Basic shutdown logic is tested in error recovery skipping behavior
 
-    it.skip("should handle SIGTERM signal", () => {
-      // Skipped: Complex event emitter interaction
+    it("should handle SIGTERM signal", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const exitStub = stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
+
+        // Capture the SIGTERM handler
+        let sigtermHandler: (() => void) | undefined;
+        const onStub = stub(
+          process,
+          "on",
+          (_event: string | symbol, handler: (...args: unknown[]) => void) => {
+            sigtermHandler = handler as () => void;
+            return process;
+          },
+        );
+
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: true,
+        });
+
+        // Verify handler was registered
+        expect(onStub.calls[0].args[0]).toBe("SIGINT");
+        expect(onStub.calls[1].args[0]).toBe("SIGTERM");
+
+        // Trigger the SIGTERM handler
+        sigtermHandler!();
+
+        // Wait for the shutdown to complete
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Should have called process.exit(0)
+        expect(exitStub.calls.length).toBe(1);
+        expect(exitStub.calls[0].args[0]).toBe(0);
+
+        // Clean up
+        orchestrator.dispose();
+      })();
     });
 
-    it.skip("should handle SIGINT signal", () => {
-      // Skipped: Complex event emitter interaction
+    it("should handle SIGINT signal", async () => {
+      await mockSessionAsync(async () => {
+        stub(logger, "child", () => mockLogger as never);
+        const exitStub = stub(process, "exit", () => undefined as never);
+        const client1 = new MockArrClient("radarr", 1.0) as unknown as ArrClient;
+
+        const settings: GlobalSettings = {
+          ...defaultSettings,
+          missing_batch_size: 10,
+          upgrade_batch_size: 0,
+        };
+
+        // Capture the SIGINT handler
+        let sigintHandler: (() => void) | undefined;
+        const onStub = stub(
+          process,
+          "on",
+          (_event: string | symbol, handler: (...args: unknown[]) => void) => {
+            sigintHandler = handler as () => void;
+            return process;
+          },
+        );
+
+        const orchestrator = new Orchestrator([client1], settings, {
+          oneShot: true,
+          registerSignalHandlers: true,
+        });
+
+        // Verify handler was registered
+        expect(onStub.calls[0].args[0]).toBe("SIGINT");
+        expect(onStub.calls[1].args[0]).toBe("SIGTERM");
+
+        // Trigger the SIGINT handler
+        sigintHandler!();
+
+        // Wait for the shutdown to complete
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // Should have called process.exit(0)
+        expect(exitStub.calls.length).toBe(1);
+        expect(exitStub.calls[0].args[0]).toBe(0);
+
+        // Clean up
+        orchestrator.dispose();
+      })();
     });
 
     it("should skip clients after shutdown signal in same cycle", async () => {

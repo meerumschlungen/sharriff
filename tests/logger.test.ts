@@ -4,7 +4,7 @@
 
 import { describe, it } from "node:test";
 import { expect } from "@std/expect";
-import { createLogger, logger } from "../src/logger.ts";
+import { createLogger, getLoggerOptions, logger } from "../src/logger.ts";
 
 describe("Logger", () => {
   describe("logger singleton", () => {
@@ -21,6 +21,46 @@ describe("Logger", () => {
       expect(["trace", "debug", "info", "warn", "error", "fatal", "silent"]).toContain(
         logger.level,
       );
+    });
+  });
+
+  describe("getLoggerOptions", () => {
+    it("should return JSON format options by default", () => {
+      const options = getLoggerOptions("json", "info", "UTC");
+      expect(options.level).toBe("info");
+      expect(options.transport).toBeUndefined();
+      expect(options.base).toEqual({ service: "sharriff" });
+      expect(typeof options.timestamp).toBe("function");
+      expect(typeof options.formatters?.level).toBe("function");
+    });
+
+    it("should return pretty format options with UTC timezone", () => {
+      const options = getLoggerOptions("pretty", "debug", "UTC");
+      expect(options.level).toBe("debug");
+      expect(options.transport).toMatchObject({
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "UTC:yyyy-mm-dd HH:MM:ss",
+          ignore: "pid,hostname",
+          singleLine: false,
+        },
+      });
+    });
+
+    it("should return pretty format options with SYS timezone", () => {
+      const options = getLoggerOptions("pretty", "info", "Europe/Berlin");
+      expect(options.transport).toMatchObject({
+        options: {
+          translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
+        },
+      });
+    });
+
+    it("should format level labels as objects", () => {
+      const options = getLoggerOptions("json", "info", "UTC");
+      const formatter = options.formatters?.level as (label: string) => unknown;
+      expect(formatter("info")).toEqual({ level: "info" });
     });
   });
 
