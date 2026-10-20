@@ -25,13 +25,25 @@ logger.info(
   "Sharriff - Starting up...",
 );
 
-export async function main() {
+interface MainDependencies {
+  loadConfig?: typeof loadConfig;
+  ArrClient?: typeof ArrClient;
+  Orchestrator?: typeof Orchestrator;
+}
+
+export async function main(deps: MainDependencies = {}) {
+  const {
+    loadConfig: loadConfigFn = loadConfig,
+    ArrClient: ArrClientClass = ArrClient,
+    Orchestrator: OrchestratorClass = Orchestrator,
+  } = deps;
+
   try {
     // Check for one-shot mode flag
     const oneShot = process.argv.includes("--once");
 
     // Load configuration from environment
-    const config = loadConfig();
+    const config = loadConfigFn();
 
     // Log configuration (excluding sensitive data)
     const logSafeInstances = Object.fromEntries(
@@ -66,7 +78,7 @@ export async function main() {
           return enabled;
         })
         .map(async ([name, instanceConfig]) => {
-          const client = new ArrClient(
+          const client = new ArrClientClass(
             instanceConfig.type,
             name,
             instanceConfig.host,
@@ -87,7 +99,7 @@ export async function main() {
     logger.info({ clientCount: clients.length }, "Clients initialized successfully");
 
     // Start orchestration (shutdown resources injected in constructor)
-    const orchestrator = new Orchestrator(clients, config.global, { oneShot });
+    const orchestrator = new OrchestratorClass(clients, config.global, { oneShot });
     await orchestrator.start();
   } catch (error) {
     logger.error(
@@ -101,4 +113,6 @@ export async function main() {
   }
 }
 
-void main();
+if (import.meta.main) {
+  void main();
+}
