@@ -2,7 +2,6 @@
  * Orchestrator - Manages search cycles across multiple *arr instances
  */
 
-import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { ArrClient } from "../clients/ArrClient.ts";
 import { logger } from "../logger.ts";
@@ -94,7 +93,7 @@ export class Orchestrator {
    * Run a single search cycle across all clients
    */
   private async runCycle(): Promise<void> {
-    const cycleId = randomUUID();
+    const cycleId = crypto.randomUUID();
     const cycleStart = Date.now();
     let totalTriggered = 0;
     const instanceStats: { instance: string; missing: number; cutoff: number }[] = [];
